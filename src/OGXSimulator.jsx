@@ -883,7 +883,7 @@ function SceneSVG({ setup, climate, color, season, sel }) {
         </g>
       </g>
       {/* Starlink dish (if user selected comms) */}
-      {sel && (sel.comms?.internet?.includes("starlink") || sel.comms?.internet === "starlink") && (
+      {sel && (sel.electricity?.internet?.includes("starlink") || sel.electricity?.internet === "starlink") && (
         <g transform="translate(38,110)">
           <rect x="0" y="0" width="32" height="6" rx="2" fill="#2A2A2A" stroke={C.mute} strokeWidth="0.5" />
           <line x1="16" y1="6" x2="16" y2="18" stroke={C.mute} strokeWidth="1" />
@@ -892,7 +892,7 @@ function SceneSVG({ setup, climate, color, season, sel }) {
       )}
 
       {/* LTE/cell antenna */}
-      {sel && (sel.comms?.internet?.includes("lte") || sel.comms?.internet === "lte") && (
+      {sel && (sel.electricity?.internet?.includes("lte") || sel.electricity?.internet === "lte") && (
         <g transform="translate(350,85)">
           <line x1="0" y1="0" x2="0" y2="25" stroke={C.mute} strokeWidth="1.5" />
           <line x1="0" y1="0" x2="6" y2="5" stroke={C.mute} strokeWidth="1" />
@@ -902,9 +902,33 @@ function SceneSVG({ setup, climate, color, season, sel }) {
         </g>
       )}
 
+      {/* Solar charge controller (MPTT/PWM — appears if user selected a charge controller) */}
+      {sel && sel.electricity?.controller && (
+        <g transform="translate(140,148)">
+          {/* Small wall-mounted box */}
+          <rect x="0" y="0" width="20" height="28" rx="2" fill="#1A1A1A" stroke={C.power} strokeWidth="0.8" />
+          {/* Display screen */}
+          <rect x="3" y="3" width="14" height="8" rx="1" fill="#0A2A0A" opacity="0.9" />
+          {/* Screen text simulated */}
+          <line x1="5" y1="6" x2="13" y2="6" stroke="#3AFF3A" strokeWidth="0.5" opacity="0.7" />
+          <line x1="5" y1="8" x2="11" y2="8" stroke="#3AFF3A" strokeWidth="0.5" opacity="0.5" />
+          {/* LEDs */}
+          <circle cx="5" cy="16" r="1.5" fill="#3AFF3A" opacity="0.8"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" /></circle>
+          <circle cx="10" cy="16" r="1.5" fill={C.power} opacity="0.6" />
+          <circle cx="15" cy="16" r="1.5" fill="#3AFF3A" opacity="0.4" />
+          {/* Ventilation slots */}
+          <line x1="4" y1="21" x2="16" y2="21" stroke="#2A2A2A" strokeWidth="0.5" />
+          <line x1="4" y1="23" x2="16" y2="23" stroke="#2A2A2A" strokeWidth="0.5" />
+          {/* Wire to solar panels */}
+          <line x1="0" y1="5" x2="-20" y2="-10" stroke={C.power} strokeWidth="0.8" opacity="0.5" />
+          {/* Wire to house/battery */}
+          <line x1="20" y1="10" x2="28" y2="5" stroke={C.power} strokeWidth="0.8" opacity="0.5" />
+        </g>
+      )}
+
       {/* Security cameras — count based on detection choices */}
       {sel && (() => {
-        const detect = sel.security?.detect || [];
+        const detect = sel.electricity?.detect || [];
         const ids = Array.isArray(detect) ? detect : [detect];
         const hasCameras = ids.includes("cameras");
         const hasMotion = ids.includes("motion");
