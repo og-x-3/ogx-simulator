@@ -1078,6 +1078,17 @@ export default function App() {
   const tier = TIERS[cfg.tier];
   const price = (opt) => Math.round((opt.p * tier.mult) / 5) * 5;
 
+  /* Unified option cost calculator — uses configurator if available, falls back to flat price */
+  function getOptionSpent(op) {
+    const ac = op.config || autoConfig(op, tier);
+    const v = cfgValues[op.id] || {};
+    const defaults = {};
+    (ac.choices || []).forEach((row) => { defaults[row.key] = row.opts[0].id; });
+    const fullV = { ...defaults, ...v, _budget: v._budget || ac.budget.def };
+    const r = ac.output ? ac.output(fullV) : { spent: 0 };
+    return r.spent || price(op);
+  }
+
   const spent = useMemo(() => {
     let total = 0;
     THEMATIC_ORDER.forEach((tk) => {
@@ -1087,14 +1098,7 @@ export default function App() {
         const ids = Array.isArray(v) ? v : v ? [v] : [];
         ids.forEach((id) => {
           const op = st.options.find((x) => x.id === id);
-          if (op) {
-            if (op.config || true) { // All options get configurator
-              const ac = op.config || autoConfig(op, tier);
-              const v = cfgValues[op.id] || { _budget: ac.budget.def };
-              const r = ac.output ? ac.output(v) : { spent: 0 };
-              total += r.spent || price(op);
-            }
-          }
+          if (op) total += getOptionSpent(op);
         });
       });
     });
@@ -1103,7 +1107,7 @@ export default function App() {
 
   const remaining = cfg.budget - spent;
 
-  /* spending breakdown by thematic for bar chart */
+  /* spending breakdown by thematic for bar chart — uses same method as spent */
   const breakdown = useMemo(() => {
     const b = {};
     THEMATIC_ORDER.forEach((tk) => {
@@ -1114,13 +1118,13 @@ export default function App() {
         const ids = Array.isArray(v) ? v : v ? [v] : [];
         ids.forEach((id) => {
           const op = st.options.find((x) => x.id === id);
-          if (op) total += price(op);
+          if (op) total += getOptionSpent(op);
         });
       });
       b[tk] = total;
     });
     return b;
-  }, [sel, cfg.tier]);
+  }, [sel, cfg.tier, cfgValues]);
 
   const spentTotal = THEMATIC_ORDER.reduce((s, tk) => s + breakdown[tk], 0);
   const remaining2 = Math.max(0, cfg.budget - spentTotal);
@@ -1734,9 +1738,7 @@ export default function App() {
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: on ? th.color : C.amber }}>
-                              {op.config || true
-                                ? "$" + (() => { const ac = op.config || autoConfig(op, tier); const v = cfgValues[op.id] || {}; const r = ac.output ? ac.output({_budget: v._budget || ac.budget.def, cond: v.cond || "new", qual: v.qual || "standard", charger: v.charger || "none"}) : {spent: price(op)}; return r.spent.toLocaleString(); })()
-                                : price(op) === 0 ? "free" : "$" + price(op).toLocaleString()}
+                              ${(on ? getOptionSpent(op) : price(op)).toLocaleString()}
                             </span>
                             {on ? <Check size={16} color={th.color} /> : <ShoppingCart size={14} color={C.faint} />}
                           </div>
