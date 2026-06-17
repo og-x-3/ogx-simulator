@@ -902,30 +902,6 @@ function SceneSVG({ setup, climate, color, season, sel }) {
         </g>
       )}
 
-      {/* Solar charge controller (MPTT/PWM — appears if user selected a charge controller) */}
-      {sel && sel.electricity?.controller && (
-        <g transform="translate(140,148)">
-          {/* Small wall-mounted box */}
-          <rect x="0" y="0" width="20" height="28" rx="2" fill="#1A1A1A" stroke={C.power} strokeWidth="0.8" />
-          {/* Display screen */}
-          <rect x="3" y="3" width="14" height="8" rx="1" fill="#0A2A0A" opacity="0.9" />
-          {/* Screen text simulated */}
-          <line x1="5" y1="6" x2="13" y2="6" stroke="#3AFF3A" strokeWidth="0.5" opacity="0.7" />
-          <line x1="5" y1="8" x2="11" y2="8" stroke="#3AFF3A" strokeWidth="0.5" opacity="0.5" />
-          {/* LEDs */}
-          <circle cx="5" cy="16" r="1.5" fill="#3AFF3A" opacity="0.8"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" /></circle>
-          <circle cx="10" cy="16" r="1.5" fill={C.power} opacity="0.6" />
-          <circle cx="15" cy="16" r="1.5" fill="#3AFF3A" opacity="0.4" />
-          {/* Ventilation slots */}
-          <line x1="4" y1="21" x2="16" y2="21" stroke="#2A2A2A" strokeWidth="0.5" />
-          <line x1="4" y1="23" x2="16" y2="23" stroke="#2A2A2A" strokeWidth="0.5" />
-          {/* Wire to solar panels */}
-          <line x1="0" y1="5" x2="-20" y2="-10" stroke={C.power} strokeWidth="0.8" opacity="0.5" />
-          {/* Wire to house/battery */}
-          <line x1="20" y1="10" x2="28" y2="5" stroke={C.power} strokeWidth="0.8" opacity="0.5" />
-        </g>
-      )}
-
       {/* Security cameras — count based on detection choices */}
       {sel && (() => {
         const detect = sel.electricity?.detect || [];
@@ -1796,6 +1772,27 @@ export default function App() {
                           fontSize: 12.5, lineHeight: 1.5, color: C.bone,
                           animation: "loadPulse 0.3s ease",
                         }}>
+                          {/* Equipment illustration for charge controller options */}
+                          {(op.id === "pwm" || op.id === "mppt" || op.id === "mpptlith" || op.id === "split") && (
+                            <div style={{ textAlign: "center", marginBottom: 8 }}>
+                              <svg width="100" height="70" viewBox="0 0 100 70">
+                                <rect x="25" y="5" width="50" height="50" rx="4" fill="#1A1A1A" stroke={C.power} strokeWidth="1.2" />
+                                <rect x="32" y="12" width="36" height="16" rx="2" fill="#0A2A0A" opacity="0.95" />
+                                <line x1="36" y1="18" x2="56" y2="18" stroke="#3AFF3A" strokeWidth="0.8" opacity="0.8" />
+                                <line x1="36" y1="22" x2="48" y2="22" stroke="#3AFF3A" strokeWidth="0.8" opacity="0.5" />
+                                <circle cx="33" cy="36" r="3" fill="#3AFF3A" opacity="0.9">
+                                  <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" />
+                                </circle>
+                                <circle cx="43" cy="36" r="3" fill={C.power} opacity="0.7" />
+                                <circle cx="53" cy="36" r="3" fill="#3AFF3A" opacity="0.5" />
+                                <line x1="28" y1="46" x2="72" y2="46" stroke="#2A2A2A" strokeWidth="0.8" />
+                                <line x1="28" y1="50" x2="72" y2="50" stroke="#2A2A2A" strokeWidth="0.8" />
+                                <line x1="25" y1="12" x2="5" y2="0" stroke={C.power} strokeWidth="1" opacity="0.5" />
+                                <line x1="75" y1="20" x2="95" y2="10" stroke={C.power} strokeWidth="1" opacity="0.5" />
+                                <text x="50" y="65" textAnchor="middle" fill={C.mute} style={{ fontFamily: "monospace", fontSize: 8, letterSpacing: 1 }}>CHARGE CONTROLLER</text>
+                              </svg>
+                            </div>
+                          )}
                           <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
                             <div style={{ flex: 1 }}>
                               <span style={{ fontFamily: FONT_MONO, fontSize: 8, color: C.ok, letterSpacing: 1, textTransform: "uppercase" }}>PROS</span>
