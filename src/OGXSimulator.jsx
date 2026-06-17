@@ -2,12 +2,13 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import {
   Zap, Droplet, Sprout, Shield, Radio, ArrowLeft, Check, Info, Wallet,
   AlertTriangle, Sparkles, RotateCcw, X, ChevronRight, ShoppingCart, HelpCircle, BarChart3,
+  Share2, Save,
 } from "lucide-react";
 
 /* ============================================================================
    OGX OFF-GRID SIMULATOR  —  improved build
    Flow: Welcome (climate / setup / budget / tier / mode) -> Console (setup
-   image + 5 clickable dashboards) -> per-thematic segmented "shop" pages,
+   image + 3 clickable dashboards) -> per-thematic segmented "shop" pages,
    ordered exactly as the chapters run -> mystery-card stress test.
    Prices are starting placeholders, to be swapped for the fact-checked JSON.
    Not electrical-safety advice.
@@ -72,7 +73,7 @@ const THEMATICS = {
               {key:"mount",label:"Mount",opts:[{id:"roof",l:"Roof +$0",e:"Simplest, uses existing structure"},{id:"ground",l:"Ground +$200",e:"Accessible, better airflow"},{id:"tracker",l:"Tracker +$350",e:"+30% yield, tracks sun"}]},
               {key:"cool",label:"Cooling",opts:[{id:"none",l:"None",e:"Free, panels run hot (-0.4%/°C)"},{id:"passive",l:"Passive +$50",e:"Air gap, -10°C, +10% output"},{id:"active",l:"Active +$120",e:"Water mist, -20°C, +15%"}]}
             ],output:(v)=>{const w=v.cond==="new"?1.05:0.40;const tm=v.type==="rigid"?1:v.type==="flex"?1.4:1.3;const mc=v.mount==="ground"?200:v.mount==="tracker"?350:0;const cc=v.cool==="passive"?50:v.cool==="active"?120:0;const pb=v._budget-mc-cc;const w2=pb>0?Math.round(pb/(w*tm)):0;const ac=mc+cc+(w2*w*tm);return{fields:[["Array size",(w2>=1000?(w2/1000).toFixed(1)+"kW":w2+"W")],["Daily yield",Math.round(w2*3.5/1000*10)/10+"kWh/day"],["Monthly",Math.round(w2*3.5*30/1000)+"kWh/mo"],["Cost/W","$"+(w*tm).toFixed(2)]],spent:Math.round(ac),budget:v._budget};}}),
-          o("wind", "Wind turbine", "Great in windy/maritime spots. Charges day and night when it blows.", 600, ["needsCC"], "PROS: Complements solar perfectly — produces at night and in cloudy weather. CONS: Needs consistent wind >8mph, moving parts need maintenance, can be noisy.",
+          o("wind", "Wind turbine", "Great in windy/maritime spots. Charges day and night when it blows.", 750, ["needsCC"], "PROS: Complements solar perfectly — produces at night and in cloudy weather. CONS: Needs consistent wind >8mph, moving parts need maintenance, can be noisy.",
             {budget:{min:500,max:8000,step:100,def:3000},choices:[
               {key:"cond",label:"Unit",opts:[{id:"used",l:"Used $0.50/W",e:"Cheaper but shorter lifespan, less efficient"},{id:"new",l:"New $0.80/W",e:"Full rated output, 20yr lifespan, warranty"}]},
               {key:"tower",label:"Tower",opts:[{id:"low",l:"30ft +$0",e:"Lowest cost, but more turbulence"},{id:"mid",l:"60ft +$300",e:"Better wind, less turbulence"},{id:"high",l:"100ft +$800",e:"Best wind, highest output"}]}
@@ -86,19 +87,7 @@ const THEMATICS = {
         ],
       },
       {
-        id: "panels", title: "2 · Solar panel type", optional: true,
-        relevant: (h) => false, // Rendered inline under Solar panels option now
-        intro: "Panel tech & tricks. Salvaged damaged panels are often free — fine if you have roof space. On a boat/van, squeeze more from each panel.",
-        options: [
-          o("salvaged", "Salvaged / 2nd-hand", "Cheap or free, a bit damaged (~70% output). Great if space is no issue.", 150, ["diyfav"], "Best for ground mounts or big roofs where space isn't tight. The lower efficiency is offset by the dramatically lower cost."),
-          o("rigid", "Rigid mono panels", "Aluminium-framed, efficient, durable. The default workhorse.", 350, [], "The standard for a reason — good efficiency, aluminum frame for mounting, 25-year lifespan. Pick these unless you have a specific constraint."),
-          o("flexible", "Flexible panels", "Curve to a deck/roof, but less efficient and more fragile.", 500, [], "Only buy these if you MUST conform to a curved surface (boat deck, van roof). They run hotter and degrade faster."),
-          o("tracker", "+ 1-axis sun tracker", "Cheap DIY upgrade, up to ~30% more production.", 220, ["upgrade"], "Worth it when roof space is limited — tilting panels toward the sun can boost output by 30%. Especially valuable in winter at higher latitudes."),
-          o("cooling", "+ panel cooling", "Heat kills silicon output; cooling can claw back ~15%.", 120, ["upgrade"], "Hot panels lose efficiency. A passive air gap or water trickle can recover 10–15%. Mostly useful in desert/tropical climates."),
-        ],
-      },
-      {
-        id: "battery", title: "3 · Battery bank + BMS", optional: true,
+        id: "battery", title: "2 · Battery bank + BMS", optional: true,
         relevant: (h) => !(h.has("electricity", "generate", "hydro") && h.count("electricity", "generate") === 1),
         intro: "Where you store energy. Skip-able only if you're hydro-ONLY (river runs all night). Lithium needs an active-balance BMS — non-negotiable.",
         options: [
@@ -114,53 +103,121 @@ const THEMATICS = {
         ],
       },
       {
-        id: "controller", title: "4 · Charge controller", optional: true,
+        id: "controller", title: "3 · Charge controller", optional: true,
         relevant: (h) => h.has("electricity", "generate", "solar") || h.has("electricity", "generate", "wind"),
         intro: "Regulates current before it hits the battery. With lithium you MUST use a lithium-compatible (usually MPPT) controller. Splitting the array across several small controllers buys redundancy + shade tolerance.",
         options: [
-          o("pwm", "PWM controller", "Cheapest, does the job, ~20% less efficient than MPPT.", 60, ["diyfav"], "Fine for very small systems. Simple, durable, and cheap — but wastes about 20% of panel potential. Only use with 12V panels and lead-acid."),
-          o("mppt", "MPPT controller", "~20% more harvest, ~40% pricier, often Bluetooth.", 250, [], "The sweet spot. MPPT extracts 20% more power from the same panels, especially in cold or partial shade. The extra cost pays back in 1-2 seasons."),
-          o("mpptlith", "Lithium-compatible MPPT", "Required if you chose any lithium bank.", 320, [], "Non-negotiable with lithium: needs configurable charge profile (14.2V absorption, float at 13.8V or none). Most modern MPPT units support this."),
+          o("pwm", "PWM controller", "Cheapest, does the job, ~20% less efficient than MPPT.", 25, ["diyfav"], "Fine for very small systems. Simple, durable, and cheap — but wastes about 20% of panel potential. Only use with 12V panels and lead-acid."),
+          o("mppt", "MPPT controller", "~20% more harvest, ~40% pricier, often Bluetooth.", 130, [], "The sweet spot. MPPT extracts 20% more power from the same panels, especially in cold or partial shade. The extra cost pays back in 1-2 seasons."),
+          o("mpptlith", "Lithium-compatible MPPT", "Required if you chose any lithium bank.", 250, [], "Non-negotiable with lithium: needs configurable charge profile (14.2V absorption, float at 13.8V or none). Most modern MPPT units support this."),
           o("split", "Split into several small CCs", "Redundancy + shade tolerance + cheaper thin cables.", 180, ["upgrade"], "Instead of one big controller, use 2-3 smaller ones for different panel orientations. Shade on one string doesn't kill the whole system."),
         ],
       },
       {
-        id: "wiring", title: "5 · Wiring, voltage & cabinet",
+        id: "wiring", title: "4 · Wiring, voltage & cabinet",
         intro: "Busbars off the battery feed everything: DC loads, chargers, inverter. A DC-DC converter matches 24/48V devices (3D printer, tools). Put it all in a fused cabinet — and drop a fire-ball inside.",
         options: [
-          o("base12", "12V busbar + fuses", "The backbone: thick cable to bank, fused distribution.", 90, [], "Every off-grid system needs this regardless — a fused distribution point from battery to loads. Don't skip the fuses: they prevent fires."),
-          o("dcdc", "+ DC-DC converter", "Run 24/48V devices straight off DC — avoids inverter losses.", 140, ["upgrade"], "If you have 24V tools, a printer, or any non-12V DC gear, this saves the 10-15% inverter loss. Also lets you run thinner cables for those loads."),
+          o("base12", "12V busbar + fuses", "The backbone: thick cable to bank, fused distribution.", 35, [], "Every off-grid system needs this regardless — a fused distribution point from battery to loads. Don't skip the fuses: they prevent fires."),
+          o("dcdc", "+ DC-DC converter", "Run 24/48V devices straight off DC — avoids inverter losses.", 75, ["upgrade"], "If you have 24V tools, a printer, or any non-12V DC gear, this saves the 10-15% inverter loss. Also lets you run thinner cables for those loads."),
           o("cabinet", "+ fused cabinet + fire-ball", "Cabinet, breakers, and a self-popping fire extinguisher inside.", 130, ["safety"], "A proper enclosure with a fire extinguisher ball is cheap insurance. Battery terminals are the #1 fire ignition source in off-grid systems."),
           o("faraday", "+ Faraday metal box", "Metal-clad box: lightning / surge / EMP protection.", 90, ["safety"], "Essential in lightning-prone areas and an EMP concern. A simple metal enclosure with filtered cable entry protects your whole system from voltage surges."),
         ],
       },
       {
-        id: "inverter", title: "6 · Inverter (DC → AC)",
+        id: "inverter", title: "5 · Inverter (DC → AC)",
         intro: "Only needed for AC appliances (grinder, washing machine, hairdryer). Size it ~1.25x your biggest AC tool's STARTUP surge. DC-native gear is always more efficient.",
         options: [
           o("none", "No inverter — DC only", "Run everything on 12V. Most efficient, most spartan.", 0, [], "The purist approach — run all your loads on DC. No conversion losses. But limits you to 12V appliances (LEDs, pumps, DC fridge, USB charging)."),
-          o("small", "Pure-sine 1000-1500W", "Laptops, blender, small tools. Clean power, efficient.", 200, [], "Good for light AC needs. Will run laptops, TV, blender, small tools. Won't start pumps or compressors with high surge. Check startup current before buying."),
+          o("small", "Pure-sine 1000-1500W", "Laptops, blender, small tools. Clean power, efficient.", 320, [], "Good for light AC needs. Will run laptops, TV, blender, small tools. Won't start pumps or compressors with high surge. Check startup current before buying."),
           o("large", "Pure-sine 3000W+", "Washing machine, angle grinder, big loads.", 550, [], "If you need real AC power — power tools, washing machine, well pump. Size for the STARTUP surge, not running watts. Bigger inverters have higher idle draw."),
           o("chgr", "Inverter-charger combo", "Inverter + shore/generator charger in one unit.", 1100, [], "One device does both jobs. Saves space and wiring. The charger side can push 50A+ into the battery from generator/shore power. Premium but clean."),
         ],
       },
       {
-        id: "genint", title: "7 · Generator integration", optional: true,
+        id: "genint", title: "6 · Generator integration", optional: true,
         relevant: (h) => h.has("electricity", "generate", "genset"),
         intro: "You can't dump AC straight into a battery. A LiFePO4 bank especially will pull current until the alternator COOKS — you need a proper charger or careful control.",
         options: [
-          o("accharger", "AC battery charger", "Converts generator AC → DC safely. The clean way.", 250, [], "The correct way: a proper AC-DC charger that matches your battery chemistry. Set it for the right absorption voltage and let it manage the charge profile."),
+          o("accharger", "AC battery charger", "Converts generator AC → DC safely. The clean way.", 150, [], "The correct way: a proper AC-DC charger that matches your battery chemistry. Set it for the right absorption voltage and let it manage the charge profile."),
           o("alternator", "Engine alternator + control", "Belt-driven, fast charge — but lithium needs a cutoff or it overcharges.", 180, ["risk"], "Fast charging from a vehicle alternator — but dangerous if not controlled. LiFePO4 has unlimited current acceptance below its absorption voltage — the alternator runs full throttle until it overheats. A regulator or battery protect is mandatory."),
         ],
       },
       {
-        id: "optimize", title: "8 · Optimize & protect", multi: true, optional: true,
+        id: "optimize", title: "7 · Optimize & protect", multi: true, optional: true,
         intro: "Squeeze comfort from a small system, and watch it so it lasts.",
         options: [
-          o("shunt", "Battery monitor / shunt", "Know your real state of charge — stop guessing, stop over-draining.", 180, [], "A shunt is the single most useful accessory. Without it, you're guessing state of charge by voltage — which is wildly inaccurate under load. A Victron SmartShunt or similar pays for itself."),
+          o("shunt", "Battery monitor / shunt", "Know your real state of charge — stop guessing, stop over-draining.", 80, [], "A shunt is the single most useful accessory. Without it, you're guessing state of charge by voltage — which is wildly inaccurate under load. A Victron SmartShunt or similar pays for itself."),
           o("efficient", "Efficient loads (LED, brushless)", "LED lights, brushless 12V fans, efficient compressor.", 120, ["diyfav"], "Every watt saved is one you don't have to generate. LED bulbs use 90% less than incandescent. Brushless DC fans are 70% more efficient than AC. Cheap upgrades that drastically reduce system size."),
           o("tools", "Battery power tools", "Bonus power that won't black out the house at night.", 250, [], "Cordless power tools: their batteries are a separate, portable power bank. Charge them during the day, use them at night without touching the house bank. Also convenient for remote work."),
           o("dumpload", "Dump load / smart controller", "Divert surplus to water heating / freezer when the bank is full.", 160, ["upgrade"], "When the battery is full and the sun is still shining, dump load diverts that energy to something useful: heating water, running a freezer, or desalination. Turns wasted surplus into value."),
+        ],
+      },
+      // ---- Security options (absorbed from Security thematic) ----
+      {
+        id: "detect", title: "8 · Security — detect & deter", multi: true,
+        intro: "Half the job is deterrence — they'll skip the place with a barking dog. Stack a few layers.",
+        options: [
+          o("dog", "Watchdog", "Hears & smells trouble before you do. Best low-tech alarm there is.", 100, [], "The best security system ever: a barking dog deters most intruders, alerts you to everything (including fires and wild animals), and costs food and love. Don't underestimate this."),
+          o("motion", "Motion lights", "Cheap PIR floodlights; pair with a chime or message.", 80, [], "Sudden bright light startles intruders and tells YOU someone's approaching. Cheap, low-power, effective. Add a PIR chime inside to hear movement near the house."),
+          o("alarm", "Intrusion alarm sensors", "Pressure/magnetic sensors, bought or DIY.", 120, [], "Magnetic door switches, pressure mats, window break sensors. Wire them to a siren and a notification system. Simple, reliable, low-power."),
+          o("cameras", "Camera system", "From fake blinkers to solar AI cameras streaming to your phone.", 300, ["needsPower"], "Modern solar Reolink/Eufy cameras transmit to your phone over WiFi. AI can distinguish people from animals. Useful for remote monitoring but needs decent internet and power."),
+          o("fiber", "Optical-fiber perimeter", "Vibration on a fiber loop flags movement over a big perimeter. Cheap area cover, no visual.", 250, [], "Bury a fiber optic cable around your perimeter. Vibration from footsteps triggers an alert. Covers a large area for cheap, works in all weather. No false triggers from animals."),
+          o("drone", "Self-launching drone", "Auto-patrol with a speaker — serious deterrent.", 900, [], "A drone that auto-launches, patrols your perimeter, and can speak to intruders. Very effective deterrent but expensive. Worth it for larger homesteads."),
+        ],
+      },
+      {
+        id: "harden", title: "9 · Harden the home", multi: true, optional: true,
+        intro: "Make at least one part of the house genuinely secure.",
+        options: [
+          o("door", "Strong door + earthbag walls", "Earthbag is bullet- & fire-proof; add a heavy door barred inside.", 300, [], "Earthbag walls (stacked bags of subsoil) are bulletproof and fireproof. Add a heavy steel door with interior bar — you now have a safe room. The simplest hardening."),
+          o("saferoom", "Safe room + escape tunnel", "A hardened (often underground) room with a way out.", 600, [], "A dedicated safe room with reinforced walls, ventilation, and an escape tunnel. Costlier but gives you a secure fallback during the worst scenarios."),
+          o("lexan", "Lexan / barred windows", "Polycarbonate or bars on vulnerable openings.", 180, [], "Windows are the weakest point. Lexan polycarbonate is 250x stronger than glass. Steel bars are even stronger but look more 'fortress-like'. Pick based on your threat model."),
+        ],
+      },
+      {
+        id: "fire", title: "10 · Fire safety", multi: true,
+        intro: "Your DIY electrics are the #1 fire risk, and you're far from any fire brigade. Be over-stocked.",
+        options: [
+          o("fireball", "Fire-balls (auto extinguishers)", "Sit in the battery cabinet; pop & smother a fire automatically.", 90, ["safety"], "Tennis-ball sized auto-extinguishers. When a fire starts nearby, they pop and release dry chemical. Place one in your battery cabinet and one near the inverter. Cheap fire insurance."),
+          o("extinguishers", "Extinguisher stock", "Several, spread around. You're your own fire service.", 120, [], "You are the fire department. Have extinguishers in the kitchen, battery room, workshop, and near every heat source. Inspect and rotate them annually."),
+          o("tempmon", "Temp monitoring on electrics", "Alarms on charger / controller / battery hot-spots.", 110, ["safety"], "Temperature sensors on batteries, controller, and inverter that alarm via your phone if something overheats. Catches the problem before it becomes a fire."),
+          o("firepump", "Dedicated fire pump / reserve", "Pump that can drain a pond/pool onto a fire.", 300, [], "A gas-powered or DC pump dedicated to firefighting. If you have a pond, pool, or large tank, this can deliver hundreds of liters per minute onto a fire."),
+        ],
+      },
+      {
+        id: "community", title: "11 · Community link", optional: true,
+        intro: "A neighbour network beats any gadget — security, advice, seeds, extra hands.",
+        options: [
+          o("radionet", "Radio / mesh neighbour net", "Stay in touch with neighbours for help & check-ins.", 150, [], "A VHF or Meshtastic network connecting your neighbours. Check in daily, share warnings, help each other. Social resilience is the strongest security you can buy."),
+          o("none", "Go it alone", "Fully solo. Make sure your comms-for-help is rock solid.", 0, [], "Solo off-grid has romantic appeal but is genuinely dangerous without backup. If you choose this, invest heavily in reliable emergency comms (satellite messenger + PLB)."),
+        ],
+      },
+      // ---- Communications options (absorbed from Communications thematic) ----
+      {
+        id: "localcomms", title: "12 · Local / short-range comms", multi: true,
+        intro: "Talk to people on or near the property without any internet.",
+        options: [
+          o("vhf", "VHF radio", "Marine/handheld voice — essential on a boat & between buildings.", 120, [], "Marine VHF is mandatory for boat dwellers. Handheld VHF radios work across a homestead. No infrastructure needed — just two radios on the same channel."),
+          o("gmrs", "GMRS / PMR handhelds", "Cheap walkie-talkies for the homestead & work crews.", 60, [], "Cheap, simple, license-free (in most countries for PMR). Great for coordinating work across the property. ~1-5 km range depending on terrain."),
+          o("mesh", "Meshtastic LoRa mesh", "Tiny solar nodes form a text mesh over km, off-internet.", 150, [], "Solar-powered LoRa radio nodes form a text-messaging mesh. Works completely off-grid, over tens of kilometers. Each node costs ~$30. Brilliant for community networking."),
+        ],
+      },
+      {
+        id: "internet", title: "13 · Internet / long-range comms", multi: true,
+        intro: "Your link to income and the world. Starlink is the off-grid game-changer — but it runs 24/7 and eats power.",
+        options: [
+          o("starlink", "Starlink", "High-speed anywhere. The income enabler — watch the power draw.", 600, ["needsPower"], "True game-changer: 100+ Mbps anywhere with a clear sky. But draws 50-100W continuous — that's 1.2-2.4 kWh/day. Make sure your solar bank can handle the always-on load."),
+          o("lte", "4G/LTE router + antenna", "If there's any cell signal, a roof antenna can pull it in cheap.", 200, [], "If you have 1-2 bars on your phone, a $50 roof antenna + $50 router can turn that into usable internet. Much lower power draw than Starlink (~10W). Always worth checking first."),
+          o("hf", "HF / SSB radio", "Long-range voice with no infrastructure at all.", 500, [], "High Frequency radio can reach across continents. No satellites, no towers. Essential for emergency comms when everything else is down. Ham license required in most countries."),
+          o("satmsg", "Satellite messenger", "inReach/PLB — texts & SOS from literally anywhere.", 350, [], "Garmin inReach or Zoleo: two-way text messaging via satellite. Also has an SOS button that alerts emergency services with your GPS coordinates. Mandatory safety gear."),
+        ],
+      },
+      {
+        id: "commspower", title: "14 · Comms power & resilience", optional: true,
+        intro: "Comms are only as reliable as the power behind them.",
+        options: [
+          o("dedicated", "Dedicated solar + battery", "A small separate system so comms survive a main-bank failure.", 300, [], "A small 50W panel + 50Ah battery just for your router and radios. Even if your main system fails, you still have comms. This saves you when everything else is down."),
+          o("budget", "Budget it into main bank", "Account for the 24/7 router/Starlink load in your power plan.", 0, ["needsPower"], "Simply include the comms draw in your main power budget. Works as long as your main system is running. Add 50-100W to your daily load calculation."),
         ],
       },
     ],
@@ -179,8 +236,14 @@ const THEMATICS = {
           o("streambox", "Stream — buried intake box", "Tap groundwater BESIDE the stream (pre-filtered, clog-free). Recommended.", 220, ["diyfav"], "The gold standard for stream collection. You dig beside the stream, not in it — the soil acts as a natural pre-filter. No clogs, less contamination. Always do this over direct intake."),
           o("streamdirect", "Stream — direct intake", "Pipe straight in the river. Simple but clogs & catches contamination.", 90, ["risk"], "Cheap and quick — but bad idea long-term. Clogs with debris, catches sediment and dead animals. Only use as a temporary setup while you build a buried intake box."),
           o("ground", "Shallow ground source", "Dig the greenest spot; funnel a seep into a small well.", 180, [], "If you don't have a stream, dig where the vegetation is lushest — you'll likely hit shallow groundwater. Simple but depends on the water table. Good supplemental source."),
-          o("borewell", "Borewell + submersible pump", "Narrow DIY-drilled well into a deep aquifer. Lots of water.", 1400, [], "Expensive but gives you a reliable, deep aquifer that doesn't fluctuate with seasons. Needs a pump (powered) and some drilling know-how. The gold standard for land-based setups."),
-          o("rain", "Rainwater + first-flush", "Roof, gutters, first-flush diverter. Always worth adding for backup.", 250, [], "Free water that falls on your roof. A first-flush diverter sends the first dirty mm down the drain. Always worth adding as a SECONDARY source — never rely solely on rain."),
+          o("borewell", "Borewell + submersible pump", "Narrow DIY-drilled well into a deep aquifer. Lots of water.", 2500, [], "Expensive but gives you a reliable, deep aquifer that doesn't fluctuate with seasons. Needs a pump (powered) and some drilling know-how. The gold standard for land-based setups.",
+            {budget:{min:1000,max:5000,step:200,def:2500},choices:[
+              {key:"depth",label:"Depth",opts:[{id:"shallow",l:"100ft +$0",e:"Good shallow aquifer, lower lift cost"},{id:"deep",l:"250ft +$500",e:"Deeper aquifer, more stable yield"},{id:"verydeep",l:"500ft +$1500",e:"Very deep, highest yield, expensive drilling"}]}
+            ],output:(v)=>{const dc=v.depth==="deep"?500:v.depth==="verydeep"?1500:0;const depth=v.depth==="shallow"?100:v.depth==="deep"?250:500;const gpm=depth>=250?12:8;const dailyGal=gpm*60*4;return{fields:[["Depth",depth+"ft"],["Flow rate",gpm+" GPM"],["Daily yield",Math.round(dailyGal).toLocaleString()+" gal/day"],["Pump included","Submersible 12V"]],spent:Math.round(2500+dc),budget:v._budget};}}),
+          o("rain", "Rainwater + first-flush", "Roof, gutters, first-flush diverter. Always worth adding for backup.", 250, [], "Free water that falls on your roof. A first-flush diverter sends the first dirty mm down the drain. Always worth adding as a SECONDARY source — never rely solely on rain.",
+            {budget:{min:100,max:1000,step:50,def:350},choices:[
+              {key:"roof",label:"Roof area",opts:[{id:"small",l:"500 sqft +$0",e:"Small cabin/van roof, ~1,000 gal/yr in moderate rain"},{id:"med",l:"1,000 sqft +$100",e:"Average house roof, ~2,000 gal/yr"},{id:"large",l:"2,000 sqft +$250",e:"Large barn/homestead roof, ~4,000 gal/yr"}]}
+            ],output:(v)=>{const rc=v.roof==="med"?100:v.roof==="large"?250:0;const sqft=v.roof==="med"?1000:v.roof==="large"?2000:500;const galYr=Math.round(sqft*0.6*40);const galMo=Math.round(galYr/12);return{fields:[["Roof area",sqft+" sqft"],["Annual harvest",galYr.toLocaleString()+" gal"],["Monthly avg",galMo.toLocaleString()+" gal"],["Includes first-flush","Yes"]],spent:Math.round(250+rc),budget:v._budget};}}),
           o("ro", "Desalination — RO unit", "Near the sea, no fresh water. ~$300-10k, needs prefilter, fragile membrane.", 3000, [], "Only if you're coastal with no fresh water. Reverse osmosis removes salt, but it's energy-intensive, the membranes are fragile (no chlorine!), and you need strong prefiltration. Expensive but necessary. For mariners."),
           o("solarstill", "Desalination — solar still", "Low-tech evaporation, cheap, slow. Mad-Max distilling option.", 180, ["diyfav"], "The low-tech path to desalination. Uses sunlight to evaporate and condense fresh water. Produces maybe 1-3L/day per square meter. Good for emergency backup or supplement, not primary."),
           o("air", "From the air (fog / AWG)", "Fog nets or atmospheric generator. Last resort, energy-hungry.", 700, [], "Atmospheric water generators are energy hogs (300-600 Wh/L). Fog nets work passively but only in specific microclimates. A last resort when no other source exists."),
@@ -190,9 +253,9 @@ const THEMATICS = {
         id: "move", title: "2 · Move the water",
         intro: "Lift it from source to tank. Gravity first; a ram pump runs on river flow alone (some have lasted a century).",
         options: [
-          o("gravity", "Gravity feed", "Source above the house = no moving parts, nothing to break.", 0, ["diyfav"], "The absolute best if you can manage it. Source higher than the tap = free water forever with zero energy and zero moving parts. No brainer. Design your layout around this if possible."),
+          o("gravity", "Gravity feed", "Source above the house = no moving parts, nothing to break.", 100, ["diyfav"], "The absolute best if you can manage it. Source higher than the tap = free water forever with zero energy and zero moving parts. No brainer. Design your layout around this if possible."),
           o("ram", "Ram pump", "Powered only by the river's own flow. Cheap, DIY, near-eternal.", 200, ["diyfav"], "Brilliant engineering: uses the momentum of falling water to pump some of it uphill. No electricity, no fuel, almost no maintenance. Some ram pumps have been running for 100+ years."),
-          o("manual", "Manual pump", "Robust, reliable, a bit of a workout. Good emergency backup.", 120, [], "Hand pump — reliable, never runs out of battery. Use as backup when other systems fail. Deep well hand pumps can lift from 100+ feet."),
+          o("manual", "Manual pump", "Robust, reliable, a bit of a workout. Good emergency backup.", 200, [], "Hand pump — reliable, never runs out of battery. Use as backup when other systems fail. Deep well hand pumps can lift from 100+ feet."),
           o("pump12", "12V electric pump", "Runs off solar/battery. Many are self-priming; bleed air if not.", 160, [], "The modern default. A good 12V diaphragm pump (e.g., Seaflo) draws ~5A and can lift from 10-15 feet. Needs priming if the suction line runs dry."),
           o("pumpac", "AC pump (needs inverter)", "Higher capacity, but depends on your inverter or genset.", 240, ["needsInv"], "For high-volume needs (irrigation, filling large tanks). Requires an inverter running, so plan for that power draw. Better for occasional big lifts than continuous use."),
         ],
@@ -250,10 +313,10 @@ const THEMATICS = {
         id: "grow", title: "1 · Grow outside", multi: true,
         intro: "Working with the land. Food forests are the lazy-genius long game; raised beds + compost get you eating fast.",
         options: [
-          o("beds", "Raised beds + compost", "Fast wins. Compost, worm bins, biochar build the soil.", 150, ["diyfav"], "The fastest path to eating from your land. Raised beds warm up faster in spring, drain well, and are easier to weed and maintain. Start here for quick wins."),
+          o("beds", "Raised beds + compost", "Fast wins. Compost, worm bins, biochar build the soil.", 200, ["diyfav"], "The fastest path to eating from your land. Raised beds warm up faster in spring, drain well, and are easier to weed and maintain. Start here for quick wins."),
           o("forest", "Food forest (guilds)", "7 layers, self-supporting, forgiving. Sticks now, abundance later.", 300, ["upgrade"], "Plant like a forest: canopy trees, understory shrubs, ground cover, root crops, vines, climbers, mushrooms. Self-fertilizing, low-maintenance once established. The long game."),
           o("earthworks", "Earthworks / swales", "Swales & ponds recharge groundwater and drought-proof the land.", 250, [], "Swales (trenches on contour) capture rainwater and let it soak into the ground. They recharge groundwater, prevent erosion, and create microclimates. Essential in dry climates."),
-          o("animals", "Chickens / small animals", "Eggs, meat, pest control, manure. Needs protection.", 200, ["needsSec"], "Chickens, rabbits, goats — they convert scraps into eggs/milk/meat and produce manure for the garden. But they need secure housing against predators and climate."),
+          o("animals", "Chickens / small animals", "Eggs, meat, pest control, manure. Needs protection.", 350, ["needsSec"], "Chickens, rabbits, goats — they convert scraps into eggs/milk/meat and produce manure for the garden. But they need secure housing against predators and climate."),
         ],
       },
       {
@@ -290,93 +353,9 @@ const THEMATICS = {
       },
     ],
   },
-
-  security: {
-    label: "Security", color: C.sec, icon: Shield,
-    short: "You're isolated — deter, detect, harden, and don't burn down.",
-    intro:
-      "Off-grid you're more exposed and far from help. Best defence is a community that watches each other's backs (linked by radio/mesh). On your own plot, layer deterrence + detection + a hardened core. And fire is a threat too.",
-    steps: [
-      {
-        id: "detect", title: "1 · Deter & detect", multi: true,
-        intro: "Half the job is deterrence — they'll skip the place with a barking dog. Stack a few layers.",
-        options: [
-          o("dog", "Watchdog", "Hears & smells trouble before you do. Best low-tech alarm there is.", 100, ["diyfav"], "The best security system ever: a barking dog deters most intruders, alerts you to everything (including fires and wild animals), and costs food and love. Don't underestimate this."),
-          o("motion", "Motion lights", "Cheap PIR floodlights; pair with a chime or message.", 80, ["diyfav"], "Sudden bright light startles intruders and tells YOU someone's approaching. Cheap, low-power, effective. Add a PIR chime inside to hear movement near the house."),
-          o("alarm", "Intrusion alarm sensors", "Pressure/magnetic sensors, bought or DIY.", 120, [], "Magnetic door switches, pressure mats, window break sensors. Wire them to a siren and a notification system. Simple, reliable, low-power."),
-          o("cameras", "Camera system", "From fake blinkers to solar AI cameras streaming to your phone.", 300, ["needsPower"], "Modern solar Reolink/Eufy cameras transmit to your phone over WiFi. AI can distinguish people from animals. Useful for remote monitoring but needs decent internet and power."),
-          o("fiber", "Optical-fiber perimeter", "Vibration on a fiber loop flags movement over a big perimeter. Cheap area cover, no visual.", 250, ["upgrade"], "Bury a fiber optic cable around your perimeter. Vibration from footsteps triggers an alert. Covers a large area for cheap, works in all weather. No false triggers from animals."),
-          o("drone", "Self-launching drone", "Auto-patrol with a speaker — serious deterrent.", 900, ["upgrade"], "A drone that auto-launches, patrols your perimeter, and can speak to intruders. Very effective deterrent but expensive. Worth it for larger homesteads."),
-        ],
-      },
-      {
-        id: "harden", title: "2 · Harden the home", multi: true, optional: true,
-        intro: "Make at least one part of the house genuinely secure.",
-        options: [
-          o("door", "Strong door + earthbag walls", "Earthbag is bullet- & fire-proof; add a heavy door barred inside.", 300, ["diyfav"], "Earthbag walls (stacked bags of subsoil) are bulletproof and fireproof. Add a heavy steel door with interior bar — you now have a safe room. The simplest hardening."),
-          o("saferoom", "Safe room + escape tunnel", "A hardened (often underground) room with a way out.", 600, [], "A dedicated safe room with reinforced walls, ventilation, and an escape tunnel. Costlier but gives you a secure fallback during the worst scenarios."),
-          o("lexan", "Lexan / barred windows", "Polycarbonate or bars on vulnerable openings.", 180, [], "Windows are the weakest point. Lexan polycarbonate is 250x stronger than glass. Steel bars are even stronger but look more 'fortress-like'. Pick based on your threat model."),
-        ],
-      },
-      {
-        id: "fire", title: "3 · Fire safety", multi: true,
-        intro: "Your DIY electrics are the #1 fire risk, and you're far from any fire brigade. Be over-stocked.",
-        options: [
-          o("fireball", "Fire-balls (auto extinguishers)", "Sit in the battery cabinet; pop & smother a fire automatically.", 90, ["diyfav", "safety"], "Tennis-ball sized auto-extinguishers. When a fire starts nearby, they pop and release dry chemical. Place one in your battery cabinet and one near the inverter. Cheap fire insurance."),
-          o("extinguishers", "Extinguisher stock", "Several, spread around. You're your own fire service.", 120, [], "You are the fire department. Have extinguishers in the kitchen, battery room, workshop, and near every heat source. Inspect and rotate them annually."),
-          o("tempmon", "Temp monitoring on electrics", "Alarms on charger / controller / battery hot-spots.", 110, ["safety"], "Temperature sensors on batteries, controller, and inverter that alarm via your phone if something overheats. Catches the problem before it becomes a fire."),
-          o("firepump", "Dedicated fire pump / reserve", "Pump that can drain a pond/pool onto a fire.", 300, [], "A gas-powered or DC pump dedicated to firefighting. If you have a pond, pool, or large tank, this can deliver hundreds of liters per minute onto a fire."),
-        ],
-      },
-      {
-        id: "community", title: "4 · Community link", optional: true,
-        intro: "A neighbour network beats any gadget — security, advice, seeds, extra hands. Links to your Communications setup.",
-        options: [
-          o("radionet", "Radio / mesh neighbour net", "Stay in touch with neighbours for help & check-ins.", 150, ["diyfav", "needsComms"], "A VHF or Meshtastic network connecting your neighbours. Check in daily, share warnings, help each other. Social resilience is the strongest security you can buy."),
-          o("none", "Go it alone", "Fully solo. Make sure your comms-for-help is rock solid.", 0, ["risk"], "Solo off-grid has romantic appeal but is genuinely dangerous without backup. If you choose this, invest heavily in reliable emergency comms (satellite messenger + PLB)."),
-        ],
-      },
-    ],
-  },
-
-  comms: {
-    label: "Communications", color: C.comms, icon: Radio,
-    short: "Stay connected — for income, for community, and for help.",
-    intro:
-      "Being remote doesn't mean cut off. The vision is 'hippie 2.0': high-speed internet for online income while living wild. Layer local radio, an internet link, and an always-works emergency channel. (No dedicated chapter yet — pulled from the security & comfort sections.)",
-    steps: [
-      {
-        id: "local", title: "1 · Local / short-range", multi: true,
-        intro: "Talk to people on or near the property without any internet.",
-        options: [
-          o("vhf", "VHF radio", "Marine/handheld voice — essential on a boat & between buildings.", 120, ["diyfav"], "Marine VHF is mandatory for boat dwellers. Handheld VHF radios work across a homestead. No infrastructure needed — just two radios on the same channel."),
-          o("gmrs", "GMRS / PMR handhelds", "Cheap walkie-talkies for the homestead & work crews.", 60, ["diyfav"], "Cheap, simple, license-free (in most countries for PMR). Great for coordinating work across the property. ~1-5 km range depending on terrain."),
-          o("mesh", "Meshtastic LoRa mesh", "Tiny solar nodes form a text mesh over km, off-internet.", 150, ["diyfav", "upgrade"], "Solar-powered LoRa radio nodes form a text-messaging mesh. Works completely off-grid, over tens of kilometers. Each node costs ~$30. Brilliant for community networking."),
-        ],
-      },
-      {
-        id: "internet", title: "2 · Internet / long-range", multi: true,
-        intro: "Your link to income and the world. Starlink is the off-grid game-changer — but it runs 24/7 and eats power.",
-        options: [
-          o("starlink", "Starlink", "High-speed anywhere. The income enabler — watch the power draw.", 600, ["needsPower"], "True game-changer: 100+ Mbps anywhere with a clear sky. But draws 50-100W continuous — that's 1.2-2.4 kWh/day. Make sure your solar bank can handle the always-on load."),
-          o("lte", "4G/LTE router + antenna", "If there's any cell signal, a roof antenna can pull it in cheap.", 200, [], "If you have 1-2 bars on your phone, a $50 roof antenna + $50 router can turn that into usable internet. Much lower power draw than Starlink (~10W). Always worth checking first."),
-          o("hf", "HF / SSB radio", "Long-range voice with no infrastructure at all.", 500, [], "High Frequency radio can reach across continents. No satellites, no towers. Essential for emergency comms when everything else is down. Ham license required in most countries."),
-          o("satmsg", "Satellite messenger", "inReach/PLB — texts & SOS from literally anywhere.", 350, ["diyfav"], "Garmin inReach or Zoleo: two-way text messaging via satellite. Also has an SOS button that alerts emergency services with your GPS coordinates. Mandatory safety gear."),
-        ],
-      },
-      {
-        id: "commspower", title: "3 · Power & resilience", optional: true,
-        intro: "Comms are only as reliable as the power behind them.",
-        options: [
-          o("dedicated", "Dedicated solar + battery", "A small separate system so comms survive a main-bank failure.", 300, ["diyfav"], "A small 50W panel + 50Ah battery just for your router and radios. Even if your main system fails, you still have comms. This saves you when everything else is down."),
-          o("budget", "Budget it into main bank", "Account for the 24/7 router/Starlink load in your power plan.", 0, ["needsPower"], "Simply include the comms draw in your main power budget. Works as long as your main system is running. Add 50-100W to your daily load calculation."),
-        ],
-      },
-    ],
-  },
 };
 
-const THEMATIC_ORDER = ["electricity", "water", "food", "security", "comms"];
+const THEMATIC_ORDER = ["electricity", "water", "food"];
 
 /* ----------------------------------------------------- MYSTERY CARDS ------ */
 /* Each: trigger(h) -> bool. h.has(th,step,id), h.any, h.count, h.climate, h.setup, h.tier */
@@ -386,7 +365,7 @@ const SALTY = ["tropics", "maritime"];
 
 const CARDS = [
   { id: "delam", sev: "warn", title: "Two panels delaminated", color: C.power,
-    trigger: (h) => h.has("electricity", "panels", "salvaged") && SALTY.includes(h.climate),
+    trigger: (h) => h.has("electricity", "generate", "solar") && SALTY.includes(h.climate),
     body: "Eight months in, two of your salvaged panels bubble and delaminate under relentless UV and salt air — just like a real case in coastal Florida where a DIYer lost 12 of 16 panels to golf-ball-sized hail the following spring.",
     lesson: "In salty/UV climates, salvaged panels age fast — and a single hail storm can wipe you out. Choose panels rated Class 4 for hail, install at steep angles to shed debris, and keep spares. A ground-mount is more exposed than roof — factor that in." },
 
@@ -461,7 +440,7 @@ const CARDS = [
     lesson: "A 12V chest fridge can draw 50-80 Ah/day — typically your #1 consumer. Test actual usage with a Kill-A-Watt. Insulate the box with an extra blanket in winter. Set thermostat one degree warmer (saves 10-15%). Propane fridges use zero electricity." },
 
   { id: "coopraid", sev: "bad", title: "The coop got raided", color: C.food,
-    trigger: (h) => h.has("food", "grow", "animals") && (h.has("security", "community", "none") || (!h.has("security", "detect", "dog") && !h.has("security", "harden", "door"))),
+    trigger: (h) => h.has("food", "grow", "animals") && (h.has("electricity", "community", "none") || (!h.has("electricity", "detect", "dog") && !h.has("electricity", "harden", "door"))),
     body: "A predator — two- or four-legged — cleans out your chickens overnight. No dog barked. No alarm. A year of eggs gone in one night.",
     lesson: "Real homesteaders lose entire flocks to raccoons, foxes, even bears. Use hardware cloth (NOT chicken wire — that stops nothing), a motion light, and a guardian dog. One Tennessee family had a 10-foot black bear open their coop door like a latch expert." },
 
@@ -471,12 +450,12 @@ const CARDS = [
     lesson: "Food and water are one system. Swales catch rainwater and recharge groundwater. Greywater irrigates fruit trees. Mulch 4-6 inches deep cuts evaporation by 70%. A 250sqft garden needs 25+ gal/day in hot weather — plan for it." },
 
   { id: "nohelp", sev: "bad", title: "Break-in, no way to call out", color: C.sec,
-    trigger: (h) => (h.has("security", "community", "none") || !h.any("security", "community")) && !h.any("comms", "internet") && !h.any("comms", "local"),
+    trigger: (h) => (h.has("electricity", "community", "none") || !h.any("electricity", "community")) && !h.any("electricity", "internet") && !h.any("electricity", "localcomms"),
     body: "An intrusion at 2am. No radio, no neighbour net, no way to call for help. The nearest town is 45 minutes away. Isolation cuts both ways.",
     lesson: "A real Sierra Nevada cabin was burglarized for $2,400 in batteries — thieves cut a padlock and loaded a truck. Install a cellular security cam, hardened battery box locks, and a Meshtastic LoRa node ($80) for off-grid text communication over kilometers." },
 
   { id: "elecfire", sev: "bad", title: "Fire in the battery box", color: C.sec,
-    trigger: (h) => h.any("electricity", "generate") && !h.has("electricity", "wiring", "cabinet") && !h.has("security", "fire", "fireball"),
+    trigger: (h) => h.any("electricity", "generate") && !h.has("electricity", "wiring", "cabinet") && !h.has("electricity", "fire", "fireball"),
     body: "A loose battery terminal arcs, igniting stored cardboard nearby. The shed fills with toxic smoke — fire department is 35 minutes out.",
     lesson: "This exact fire happened in rural Colorado: a loose 12V terminal created resistance, arced, and ignited boxes stored nearby. Torque terminals to spec (6-8 Nm), use anti-corrosion washers, mount a fire extinguisher inside the battery enclosure, and NEVER store combustibles near batteries." },
 
@@ -553,15 +532,81 @@ function getCardImpact(card) {
 function getDecay(H, climate) {
   const isCold = ["boreal", "alpine"].includes(climate);
   const isDry = ["arid", "mediterranean"].includes(climate);
+  const isTropical = climate === "tropics";
+
+  // Electricity / battery
   const genCount = H.count("electricity", "generate");
+  const hasSolar = H.has("electricity", "generate", "solar");
+  const hasHydro = H.has("electricity", "generate", "hydro");
+  const hasWind = H.has("electricity", "generate", "wind");
+  const hasGenset = H.has("electricity", "generate", "genset");
+  const hasEfficient = H.has("electricity", "optimize", "efficient");
+  const hasBattery = H.any("electricity", "battery");
+  const isLithium = H.has("electricity", "battery", "lifepo4diy") || H.has("electricity", "battery", "lifepo4drop");
+  const winterPenalty = isCold ? 2.5 : 0; // Winter = way less solar
+  const cloudPenalty = isTropical ? 1.0 : 0; // Tropical = cloudy season
+  const genBonus = genCount * 0.4; // Each source helps
+  const solarOnlyPenalty = genCount === 1 && hasSolar ? 1.5 : 0; // Solar-only suffers
+  const hydroBonus = hasHydro ? 1.0 : 0; // Hydro runs 24/7
+  const efficientBonus = hasEfficient ? 0.8 : 0;
+  const lithiumBonus = isLithium ? 0.3 : 0; // Lithium has more usable capacity
+  const batteryDebt = !hasBattery ? 5.0 : 0; // No battery = near-impossible
+
+  const batteryDecay = Math.max(0.5, 6.0 + winterPenalty + cloudPenalty - genBonus + solarOnlyPenalty - hydroBonus - efficientBonus - lithiumBonus + batteryDebt);
+
+  // Water
   const waterCount = H.count("water", "collect");
-  const hasFood = H.any("food", "grow") || H.any("food", "controlled");
-  const hasSec = H.any("security", "detect") || H.any("security", "harden");
+  const hasGravity = H.has("water", "move", "gravity");
+  const hasRam = H.has("water", "move", "ram");
+  const hasManual = H.has("water", "move", "manual");
+  const hasElectricPump = H.has("water", "move", "pump12") || H.has("water", "move", "pumpac");
+  const hasStorage = H.any("water", "store");
+  const hasFilter = H.any("water", "filter");
+  const dryPenalty = isDry ? 3.0 : 0;
+  const sourceBonus = waterCount * 0.3;
+  const gravityBonus = hasGravity ? 1.5 : 0; // Gravity = no power needed, reliable
+  const manualBonus = hasManual ? 0.5 : 0; // Manual is reliable
+  const storageBonus = hasStorage ? 0.5 : 0;
+  const filterBonus = hasFilter ? 0.3 : 0; // Filtering = safer water, less waste
+  const pumpPenalty = hasElectricPump && !hasGravity && !hasManual ? 1.5 : 0; // Only electric = fragile
+
+  const waterDecay = Math.max(0.5, 4.0 + dryPenalty - sourceBonus - gravityBonus - manualBonus - storageBonus - filterBonus + pumpPenalty);
+
+  // Food
+  const hasGrow = H.any("food", "grow");
+  const hasControlled = H.any("food", "controlled");
+  const hasPreserve = H.any("food", "preserve");
+  const hasCook = H.any("food", "cook");
+  const hasFridge = H.has("food", "preserve", "dcfridge");
+  const hasCellar = H.has("food", "preserve", "cellar");
+  const hasJars = H.has("food", "preserve", "jars");
+  const hasChickens = H.has("food", "grow", "animals");
+
+  const foodGrowScore = hasGrow ? 1.5 : 0;
+  const controlledScore = hasControlled ? 0.8 : 0;
+  const preserveScore = hasCellar ? 1.0 : hasFridge ? 0.6 : hasJars ? 0.4 : 0;
+  const chickensScore = hasChickens ? 0.5 : 0;
+  const foodDecay = Math.max(0.5, 3.5 - foodGrowScore - controlledScore - preserveScore - chickensScore);
+
+  // Security
+  const hasDetect = H.any("electricity", "detect");
+  const hasHarden = H.any("electricity", "harden");
+  const hasFire = H.any("electricity", "fire");
+  const hasCommunity = H.any("electricity", "community");
+  const hasCameras = H.has("electricity", "detect", "cameras");
+  const hasDog = H.has("electricity", "detect", "dog");
+
+  const detectScore = hasDog ? 1.0 : hasCameras ? 0.8 : hasDetect ? 0.5 : 0;
+  const hardenScore = hasHarden ? 0.7 : 0;
+  const fireScore = hasFire ? 1.0 : 0;
+  const communityScore = hasCommunity ? 0.5 : 0;
+  const securityDecay = Math.max(0.2, 2.5 - detectScore - hardenScore - fireScore - communityScore);
+
   return {
-    battery: isCold ? 3.5 : isDry ? 2.5 : 2.0 - genCount * 0.3,
-    water: isDry ? 4.0 : 2.0 - waterCount * 0.2,
-    food: hasFood ? 0.5 : 3.0,
-    security: hasSec ? 0.3 : 2.5,
+    battery: batteryDecay,
+    water: waterDecay,
+    food: foodDecay,
+    security: securityDecay,
   };
 }
 
@@ -934,7 +979,7 @@ function autoConfig(op, tier) {
   };
 }
 
-function ConfigPanel({ op, cfg, setCfg, tier, color }) {
+function ConfigPanel({ op, cfg, setCfg, tier, color, remainingBudget, globalBudget }) {
   const config = op.config || autoConfig(op, tier);
   const c = config;
   const vals = cfg || { _budget: c.budget.def };
@@ -947,6 +992,8 @@ function ConfigPanel({ op, cfg, setCfg, tier, color }) {
   };
 
   const result = c.output ? c.output(v) : { fields: [], spent: 0, budget: v._budget };
+
+  const remainingBudgetVal = remainingBudget !== undefined ? remainingBudget : 0;
 
   return (
     <div style={{ marginTop: 8, borderTop: `1px solid ${C.line}`, paddingTop: 8 }}>
@@ -993,6 +1040,12 @@ function ConfigPanel({ op, cfg, setCfg, tier, color }) {
             {(result.budget && result.spent && result.budget > result.spent) && <span style={{ color: C.ok }}>${(result.budget - result.spent).toLocaleString()} left</span>}
             {(result.budget && result.spent && result.budget < result.spent) && <span style={{ color: C.over }}>${(result.spent - result.budget).toLocaleString()} over</span>}
           </div>
+          {/* Feature 3: Budget cap warning */}
+          {result.spent > 0 && remainingBudgetVal < result.spent && (
+            <div style={{ marginTop: 8, padding: "6px 10px", background: C.over + "22", border: `1px solid ${C.over}44`, borderRadius: 6, fontFamily: FONT_MONO, fontSize: 10, color: C.over, textAlign: "center" }}>
+              ⚠️ ${(result.spent - remainingBudgetVal).toLocaleString()} over your ${(globalBudget || remainingBudgetVal + result.spent).toLocaleString()} budget
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1003,7 +1056,7 @@ function ConfigPanel({ op, cfg, setCfg, tier, color }) {
 
 export default function App() {
   const [screen, setScreen] = useState("welcome"); // welcome | console | <thematic> | prompt
-  const [cfg, setCfg] = useState({ climate: null, setup: null, budget: 8000, tier: "mid", mode: "preset" });
+  const [cfg, setCfg] = useState({ climate: null, setup: null, budget: 8000, tier: "mid", mode: "diy" });
   const [sel, setSel] = useState(emptySel());
   const [openStepInfo, setOpenStepInfo] = useState({});
   const [cfgValues, setCfgValues] = useState({});
@@ -1014,6 +1067,7 @@ export default function App() {
   /* ---- YEAR SIMULATION STATE ---- */
   const [sim, setSim] = useState(null);
   // sim = { month: 0-11, phase: 'enter'|'decay'|'event'|'done', resources: {...}, score, schedule, currentEvent, eventVisible, prevResources }
+  const [shareMsg, setShareMsg] = useState(null);
 
   function emptySel() {
     const s = {};
@@ -1220,16 +1274,16 @@ export default function App() {
   function applyPreset() {
     const s = emptySel();
     s.electricity = {
-      generate: ["solar", "genset"], panels: "salvaged", battery: "lifepo4diy",
+      generate: ["solar", "genset"], battery: "lifepo4diy",
       controller: "mpptlith", wiring: "base12", inverter: "small", optimize: ["shunt", "efficient"],
+      detect: ["dog", "motion"], fire: ["fireball"],
+      localcomms: ["vhf"], internet: ["starlink"],
     };
     s.water = {
       collect: ["rain", "streambox"], move: "gravity", store: "poly",
       filter: ["prefilter", "uv"], use: ["greywater"],
     };
     s.food = { grow: ["beds"], preserve: ["jars"], cook: ["gas"] };
-    s.security = { detect: ["dog", "motion"], fire: ["fireball"] };
-    s.comms = { local: ["vhf"], internet: ["starlink"] };
     return s;
   }
 
@@ -1395,8 +1449,9 @@ export default function App() {
             Welcome to the <span style={{ color: C.amber }}>OGX</span> Simulation
           </h1>
           <p style={{ color: C.mute, maxWidth: 560, margin: "0 auto", lineHeight: 1.5 }}>
-            Design a real off-grid setup and stress-test it against a hard year. Pick your world, set a budget,
-            then spend it across electricity, water, food, security and comms — learning the trade-offs as you go.
+            What would you build if the grid went down? Pick your climate and setup, choose your gear across
+            electricity ⚡ water 💧 and food 🌱 — then stress-test it against a hard year. Prices are real-world
+            researched. Learning the trade-offs is optional — just build and see if you survive.
           </p>
         </div>
 
@@ -1498,6 +1553,54 @@ export default function App() {
         </div>
 
         {ledger()}
+
+        {/* Feature 1: Shareable result card */}
+        {(() => {
+          const cl = CLIMATES.find((c) => c.id === cfg.climate);
+          const sp = SETUPS.find((s) => s.id === cfg.setup);
+          const genLabels = [];
+          if (H.has("electricity", "generate", "solar")) genLabels.push("Solar");
+          if (H.has("electricity", "generate", "wind")) genLabels.push("Wind");
+          if (H.has("electricity", "generate", "hydro")) genLabels.push("Hydro");
+          if (H.has("electricity", "generate", "genset")) genLabels.push("Genset");
+          if (genLabels.length === 0) genLabels.push("—");
+          const battLabel = H.any("electricity", "battery")
+            ? (H.has("electricity", "battery", "lifepo4diy") || H.has("electricity", "battery", "lifepo4drop") ? "LiFePO4" : "Lead-acid")
+            : "none";
+          const genStr = genLabels.join(" + ") + (battLabel !== "none" ? " + " + battLabel : "");
+          const waterSources = [];
+          if (H.has("water", "collect", "rain")) waterSources.push("Rainwater");
+          if (H.has("water", "collect", "streambox") || H.has("water", "collect", "streamdirect")) waterSources.push("Stream");
+          if (H.has("water", "collect", "ground") || H.has("water", "collect", "borewell")) waterSources.push("Well");
+          if (H.has("water", "collect", "ro")) waterSources.push("RO");
+          if (waterSources.length === 0) waterSources.push("—");
+          const waterMove = H.any("water", "move") ? (H.has("water", "move", "gravity") ? "Gravity" : H.has("water", "move", "ram") ? "Ram pump" : "Pump") : "—";
+          const waterStore = H.any("water", "store") ? (H.has("water", "store", "poly") ? "Poly tank" : H.has("water", "store", "ferro") ? "Cistern" : "Tank") : "—";
+          const growLabel = H.any("food", "grow") ? (H.has("food", "grow", "beds") ? "Raised beds" : H.has("food", "grow", "aquaponics") ? "Aquaponics" : "Garden") : "—";
+          const preserveLabel = H.any("food", "preserve") ? (H.has("food", "preserve", "jars") ? "Jars" : H.has("food", "preserve", "freeze") ? "Freeze" : "Ferment") : "—";
+          const cookLabel = H.any("food", "cook") ? (H.has("food", "cook", "gas") ? "Gas stove" : H.has("food", "cook", "wood") ? "Wood stove" : H.has("food", "cook", "solar") ? "Solar cooker" : "—") : "—";
+          const shareText = [
+            "🏠 OGX OFF-GRID SETUP",
+            (cl ? cl.emoji + " " + cl.name : "") + " · " + (sp ? sp.emoji + " " + sp.name : ""),
+            "Budget: $" + cfg.budget.toLocaleString() + " · Spent: $" + spent.toLocaleString(),
+            "⚡ " + genStr,
+            "💧 " + waterSources.join(" + ") + " + " + waterMove + " + " + waterStore,
+            "🌱 " + growLabel + " + " + preserveLabel + " + " + cookLabel,
+            "Build yours: https://og-x-3.github.io/ogx-simulator/",
+          ].join("\n");
+          return (
+            <div style={{ marginBottom: 14 }}>
+              <button onClick={() => { navigator.clipboard.writeText(shareText).then(() => { setShareMsg("Copied!"); setTimeout(() => setShareMsg(null), 2000); }).catch(() => setShareMsg("Failed to copy")); }}
+                style={{ width: "100%", background: "transparent", color: C.amber, border: `1px solid ${C.amberDeep}`, borderRadius: 10, padding: 10, fontFamily: FONT_MONO, fontSize: 12, cursor: "pointer", marginBottom: 6 }}>
+                <Share2 size={14} style={{ verticalAlign: "-2px" }} /> Share your setup
+              </button>
+              {shareMsg && <div style={{ textAlign: "center", color: C.ok, fontFamily: FONT_MONO, fontSize: 11, marginBottom: 6 }}>{shareMsg}</div>}
+
+              {/* Feature 2: Email capture */}
+              <EmailCapture />
+            </div>
+          );
+        })()}
 
         {/* setup viewport */}
         <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden", marginBottom: 8 }}>
@@ -1654,7 +1757,7 @@ export default function App() {
                           <ConfigPanel op={op} cfg={cfgValues[op.id]} setCfg={(fn) => {
                             const next = typeof fn === "function" ? fn(cfgValues[op.id]) : fn;
                             setCfgValues((prev) => ({ ...prev, [op.id]: next }));
-                          }} tier={tier} color={th.color} />
+                          }} tier={tier} color={th.color} remainingBudget={cfg.budget - spent} globalBudget={cfg.budget} />
                         </div>
                       )}
                       {/* Educational "why choose this" popover */}
@@ -1829,12 +1932,16 @@ export default function App() {
 
             {/* Header with scene */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: 2, color: C.faint, textTransform: 'uppercase' }}>
-                  Year Simulation
-                </div>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  Stress Test <span style={{ color: C.amber }}>{isDone ? 'Complete' : 'Running'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Feature 4: Exit / Back to console button */}
+                <button onClick={() => { setSim(null); setScreen("console"); }} style={backBtn()}><ArrowLeft size={14} /> Console</button>
+                <div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: 2, color: C.faint, textTransform: 'uppercase' }}>
+                    Year Simulation
+                  </div>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Stress Test <span style={{ color: C.amber }}>{isDone ? 'Complete' : 'Running'}</span>
+                  </div>
                 </div>
               </div>
               <button onClick={() => setSim(null)}
@@ -2350,6 +2457,58 @@ function SectionLabel({ n, text, color }) {
       {n ? <span style={{ fontFamily: FONT_MONO, fontSize: 12, color }}>{n}</span> : null}
       <span style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", letterSpacing: 1, fontSize: 14, color: C.bone }}>{text}</span>
       <span style={{ flex: 1, height: 1, background: C.line }} />
+    </div>
+  );
+}
+
+/* Feature 2: Email capture component */
+function EmailCapture() {
+  const [email, setEmail] = React.useState("");
+  const [saved, setSaved] = React.useState(false);
+  const [error, setError] = React.useState(false);
+  const handleSave = () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError(true);
+      setTimeout(() => setError(false), 2000);
+      return;
+    }
+    try {
+      const existing = JSON.parse(localStorage.getItem("ogx_emails") || "[]");
+      if (!existing.includes(email)) {
+        existing.push(email);
+        localStorage.setItem("ogx_emails", JSON.stringify(existing));
+      }
+      setSaved(true);
+      setEmail("");
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError(true);
+      setTimeout(() => setError(false), 2000);
+    }
+  };
+  const handleKeyDown = (e) => { if (e.key === "Enter") handleSave(); };
+  return (
+    <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 10 }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: C.mute, letterSpacing: 1, marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
+        <Save size={12} /> Save your plan
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input type="email" placeholder="your@email.com" value={email}
+          onChange={(e) => setEmail(e.target.value)} onKeyDown={handleKeyDown}
+          style={{
+            flex: 1, background: C.ink, color: C.bone, border: `1px solid ${error ? C.over : C.line}`, borderRadius: 6,
+            padding: "6px 10px", fontFamily: FONT_MONO, fontSize: 12, outline: "none",
+          }} />
+        <button onClick={handleSave}
+          style={{
+            background: "transparent", color: C.amber, border: `1px solid ${C.amberDeep}`, borderRadius: 6,
+            padding: "6px 10px", fontFamily: FONT_MONO, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
+          }}>
+          {saved ? "Saved!" : "Save"}
+        </button>
+      </div>
+      {error && <div style={{ color: C.over, fontFamily: FONT_MONO, fontSize: 10, marginTop: 4 }}>Invalid email</div>}
+      {saved && <div style={{ color: C.ok, fontFamily: FONT_MONO, fontSize: 10, marginTop: 4 }}>Plan saved! We'll send you your build.</div>}
     </div>
   );
 }
