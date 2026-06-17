@@ -1,0 +1,202 @@
+{
+  "timestamp": "2026-06-17 03:17 UTC",
+  "sections": [
+    {
+      "name": "\ud83c\udfe0 WELCOME",
+      "questions": [
+        {
+          "question": "Does the welcome page make clear who this is for?",
+          "answer": null
+        },
+        {
+          "question": "Is 'OGX Off-Grid Simulator' obvious enough?",
+          "answer": null
+        },
+        {
+          "question": "Would a beginner know what to do first?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83c\udf0d STEP 1: Climate",
+      "questions": [
+        {
+          "question": "Are 7 climate options overwhelming?",
+          "answer": null
+        },
+        {
+          "question": "Are the emojis helpful or distracting?",
+          "answer": null
+        },
+        {
+          "question": "Does each blurb actually help someone pick?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83c\udfd7\ufe0f STEP 2: Setup",
+      "questions": [
+        {
+          "question": "Are the 7 dwelling types distinct enough?",
+          "answer": null
+        },
+        {
+          "question": "Is 'Catamaran/Boat' relevant for land-based users?",
+          "answer": null
+        },
+        {
+          "question": "Is the info enough to make a choice?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udcb0 STEP 3: Budget",
+      "questions": [
+        {
+          "question": "Does $3k/$8k/$20k make sense as starting budgets?",
+          "answer": null
+        },
+        {
+          "question": "Is the price tier (x0.5/x1/x2) intuitive?",
+          "answer": null
+        },
+        {
+          "question": "Is 'Full DIY' vs 'Start from preset' clear?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83c\udfae CONSOLE",
+      "questions": [
+        {
+          "question": "After clicking begin, is the console layout clear?",
+          "answer": null
+        },
+        {
+          "question": "Are the 5 dashboards ordered logically?",
+          "answer": null
+        },
+        {
+          "question": "Is the budget tracker visible and understandable?",
+          "answer": null
+        },
+        {
+          "question": "Does the SVG scene add value or confusion?",
+          "answer": null
+        },
+        {
+          "question": "Is the stress-test button obvious?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\u26a1 ELECTRICITY",
+      "questions": [
+        {
+          "question": "Does the intro modal actually teach something useful?",
+          "answer": null
+        },
+        {
+          "question": "Are the step names clear? (Generate, Panels, Battery...)",
+          "answer": null
+        },
+        {
+          "question": "Are trade-offs between options visible?",
+          "answer": null
+        },
+        {
+          "question": "Do the tags (DIY pick, risk, safety) help?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udca7 WATER",
+      "questions": [
+        {
+          "question": "Are water source options clear for a beginner?",
+          "answer": null
+        },
+        {
+          "question": "Does the priority feel right (gathering > moving > storing > filtering)?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83e\udd55 FOOD",
+      "questions": [
+        {
+          "question": "Is 'grow outside' vs 'controlled' vs 'preserve' logical?",
+          "answer": null
+        },
+        {
+          "question": "Are mushrooms, aquaponics too niche for a first build?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udee1\ufe0f SECURITY",
+      "questions": [
+        {
+          "question": "Does 'deter > harden > fire > community' make sense as a priority order?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83d\udce1 COMMS",
+      "questions": [
+        {
+          "question": "Is Starlink pricing accurate? Does the power note make sense?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83c\udfb4 STRESS TEST",
+      "questions": [
+        {
+          "question": "Are mystery cards surprising enough?",
+          "answer": null
+        },
+        {
+          "question": "Do the lessons actually teach something?",
+          "answer": null
+        },
+        {
+          "question": "Is 'quiet year' satisfying or anti-climactic?",
+          "answer": null
+        }
+      ]
+    },
+    {
+      "name": "\ud83c\udfa8 DESIGN",
+      "questions": [
+        {
+          "question": "Dark theme: readable?",
+          "answer": null
+        },
+        {
+          "question": "Font choice: Oswald/JetBrains Mono/Inter appropriate?",
+          "answer": null
+        },
+        {
+          "question": "Responsive: does grid layout work on mobile?",
+          "answer": null
+        },
+        {
+          "question": "Color coding: do accent colors (gold/blue/green/red/teal) make sense?",
+          "answer": null
+        }
+      ]
+    }
+  ],
+  "improvements": []
+}
