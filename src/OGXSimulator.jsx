@@ -1444,6 +1444,8 @@ export default function App() {
     return shell(
       <div>
         <div style={{ textAlign: "center", marginTop: 8, marginBottom: 20 }}>
+          <img src="/ogx-simulator/logo.png" alt="OGX Logo"
+            style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", marginBottom: 8, border: `2px solid ${C.amber}` }} />
           <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: 4, color: C.amber }}>OG · EXODUS</div>
           <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 40, letterSpacing: 1, margin: "6px 0", textTransform: "uppercase" }}>
             Welcome to the <span style={{ color: C.amber }}>OGX</span> Simulation
