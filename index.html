@@ -134,7 +134,7 @@ function tierPrice(p){ return Math.round(p*TIER_MULT[priceTier]/10)*10; }
 function renderGuides(){
   var g='';
   // Electricity guide
-  g+='<div class="guide-section open"><div class="guide-header open" onclick="this.parentElement.classList.toggle('open')"><span>⚡ Electricity</span><span class="chevron">▾</span></div><div class="guide-body"><p class="intro">Pick how you generate, store, and use electricity. Real prices from 142 engine rules.</p><div class="equip-grid">';
+  g+='<div class="guide-section open"><div class="guide-header open" onclick="this.parentElement.classList.toggle("open")"><span>⚡ Electricity</span><span class="chevron">▾</span></div><div class="guide-body"><p class="intro">Pick how you generate, store, and use electricity. Real prices from 142 engine rules.</p><div class="equip-grid">';
   var elec = RULES.filter(function(r){ return r.c===1||r.c==='electricity'; });
   // Show most relevant: panels, mounting, batteries, controllers
   var keyElec = elec.filter(function(r){ return r.sym.indexOf('PANEL_')>=0||r.sym.indexOf('BATTERY')>=0||r.sym.indexOf('MPPT_')>=0||r.sym.indexOf('CONTROLLER')>=0; });
@@ -145,7 +145,7 @@ function renderGuides(){
   g+='</div></div></div>';
   
   // Water guide
-  g+='<div class="guide-section open"><div class="guide-header open" onclick="this.parentElement.classList.toggle('open')"><span>💧 Water</span><span class="chevron">▾</span></div><div class="guide-body"><p class="intro">Source, pump, store, and filter your water. Real prices from 77 engine rules.</p><div class="equip-grid">';
+  g+='<div class="guide-section open"><div class="guide-header open" onclick="this.parentElement.classList.toggle("open")"><span>💧 Water</span><span class="chevron">▾</span></div><div class="guide-body"><p class="intro">Source, pump, store, and filter your water. Real prices from 77 engine rules.</p><div class="equip-grid">';
   var water = RULES.filter(function(r){ return r.c===0||r.c==='water'; });
   var keyWater = water.filter(function(r){ return r.sym.indexOf('PUMP')>=0||r.sym.indexOf('FILTER')>=0||r.sym.indexOf('TANK')>=0||r.sym.indexOf('BERKEY')>=0||r.sym.indexOf('CISTERN')>=0; });
   for(var i=0;i<Math.min(keyWater.length,20);i++){
@@ -155,7 +155,7 @@ function renderGuides(){
   g+='</div></div></div>';
   
   // Food guide
-  g+='<div class="guide-section open"><div class="guide-header open" onclick="this.parentElement.classList.toggle('open')"><span>🌱 Food</span><span class="chevron">▾</span></div><div class="guide-body"><p class="intro">Grow, raise, and preserve your food. Real options from 64 engine rules.</p><div class="equip-grid">';
+  g+='<div class="guide-section open"><div class="guide-header open" onclick="this.parentElement.classList.toggle("open")"><span>🌱 Food</span><span class="chevron">▾</span></div><div class="guide-body"><p class="intro">Grow, raise, and preserve your food. Real options from 64 engine rules.</p><div class="equip-grid">';
   var food = RULES.filter(function(r){ return r.c===2||r.c==='food'; });
   for(var i=0;i<Math.min(food.length,20);i++){
     var r=food[i], q=cart[r.sym]||0, p=tierPrice(r.p||0), pd=r.p===0?'Ref':'$'+p;
