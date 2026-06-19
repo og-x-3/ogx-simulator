@@ -54,107 +54,283 @@ const TIERS = {
 };
 
 const o = (id, name, blurb, p, tags = [], why = "", config = null) => ({ id, name, blurb, p, tags, why, config });
+const hasSolar = (h) => h.has("electricity","generate","panel100") || h.has("electricity","generate","panel200") || h.has("electricity","generate","panel400") || h.has("electricity","generate","panel450n") || h.has("electricity","generate","panelused");
+const hasLithium = (h) => h.has("electricity","battery","lifepo4_100ah") || h.has("electricity","battery","lifepo4_diy");
+const hasBackup = (h) => h.has("electricity","backup","gen_2000") || h.has("electricity","backup","gen_3500");
 
 const THEMATICS = {
   electricity: {
     label: "Electricity", color: C.power, icon: Zap,
-    short: "Generate, store and use power without giving up comfort.",
+    short: "Generate, store, regulate, and distribute power — the backbone of your off-grid system.",
     intro:
-      "Two main paradigms: rely on sun/wind (intermittent — you NEED batteries), or tap a river (constant, day & night — batteries optional). The golden rule from the chapter: never rely on one source. Build at least two.",
+      "BUILDING AN OFF-GRID POWER SYSTEM — A REAL DECISION PROCESS. Start with what you need to run (load audit), pick your system voltage, then choose panels, a charge controller, batteries, an inverter, and protection. Every choice here is based on real equipment you can buy today — Victron, Renogy, Battle Born, Canadian Solar. The golden rule: never rely on one source. Two is minimum; three is resilient.",
     steps: [
       {
-        id: "generate", title: "1 · Generate power", multi: true,
-        intro: "Start with HOW you make electricity. You can pick more than one — redundancy is the whole point.",
+        id: "needs", title: "1 · What are you powering?", multi: true,
+        intro: "The FIRST question every solar installer asks. List what you'll run daily. This sizes everything downstream — panels, battery, inverter. Be honest: a Starlink + fridge + laptop is ~2 kWh/day. Add a washing machine and you're at 4+ kWh/day. Everything flows from here.",
         options: [
-          o("solar", "Solar panels", "Most accessible, scalable, reliable. A 100W panel ≈ 4A in good sun.", 700, ["needsCC"], "PROS: Most accessible, panels keep getting cheaper, 25yr lifespan, works everywhere sun shines. CONS: Only generates during daytime, needs battery for night use, large roof space for meaningful power.",
-            {budget:{min:200,max:10000,step:100,def:2000},choices:[
-              {key:"cond",label:"Panels",opts:[{id:"used",l:"2nd-hand $0.40/W",e:"70% output, shorter life, best for tight budgets"},{id:"new",l:"New $1.05/W",e:"Full output, 25yr warranty, reliable"}]},
-              {key:"type",label:"Type",opts:[{id:"rigid",l:"Rigid",e:"Best efficiency, 25yr life, standard choice"},{id:"flex",l:"Flex ×1.4",e:"Lightweight, curved surfaces, lower efficiency"},{id:"bifacial",l:"Bifacial ×1.3",e:"Dual-sided, +15% from ground reflection"}]},
-              {key:"mount",label:"Mount",opts:[{id:"roof",l:"Roof +$0",e:"Simplest, uses existing structure"},{id:"ground",l:"Ground +$200",e:"Accessible, better airflow"},{id:"tracker",l:"Tracker +$350",e:"+30% yield, tracks sun"}]},
-              {key:"cool",label:"Cooling",opts:[{id:"none",l:"None",e:"Free, panels run hot (-0.4%/°C)"},{id:"passive",l:"Passive +$50",e:"Air gap, -10°C, +10% output"},{id:"active",l:"Active +$120",e:"Water mist, -20°C, +15%"}]}
-            ],output:(v)=>{const w=v.cond==="new"?1.05:0.40;const tm=v.type==="rigid"?1:v.type==="flex"?1.4:1.3;const mc=v.mount==="ground"?200:v.mount==="tracker"?350:0;const cc=v.cool==="passive"?50:v.cool==="active"?120:0;const pb=v._budget-mc-cc;const w2=pb>0?Math.round(pb/(w*tm)):0;const ac=mc+cc+(w2*w*tm);return{fields:[["Array size",(w2>=1000?(w2/1000).toFixed(1)+"kW":w2+"W")],["Daily yield",Math.round(w2*3.5/1000*10)/10+"kWh/day"],["Monthly",Math.round(w2*3.5*30/1000)+"kWh/mo"],["Cost/W","$"+(w*tm).toFixed(2)]],spent:Math.round(ac),budget:v._budget};}}),
-          o("wind", "Wind turbine", "Great in windy/maritime spots. Charges day and night when it blows.", 750, ["needsCC"], "PROS: Complements solar perfectly — produces at night and in cloudy weather. CONS: Needs consistent wind >8mph, moving parts need maintenance, can be noisy.",
-            {budget:{min:500,max:8000,step:100,def:3000},choices:[
-              {key:"cond",label:"Unit",opts:[{id:"used",l:"Used $0.50/W",e:"Cheaper but shorter lifespan, less efficient"},{id:"new",l:"New $0.80/W",e:"Full rated output, 20yr lifespan, warranty"}]},
-              {key:"tower",label:"Tower",opts:[{id:"low",l:"30ft +$0",e:"Lowest cost, but more turbulence"},{id:"mid",l:"60ft +$300",e:"Better wind, less turbulence"},{id:"high",l:"100ft +$800",e:"Best wind, highest output"}]}
-            ],output:(v)=>{const wp=v.cond==="new"?0.80:0.50;const tc=v.tower==="mid"?300:v.tower==="high"?800:0;const watts=Math.round((v._budget-tc)/wp/100)*100;const ac=tc+(watts*wp);return{fields:[["Rating",watts+"W"],["Est. monthly",Math.round(watts*2.5*30/1000)+"kWh"],["Tower","30ft"],["Cost/W","$"+wp.toFixed(2)]],spent:Math.round(ac),budget:v._budget};}}),
-          o("hydro", "Micro-hydro", "If you have a river: cheap, constant, often no battery needed.", 900, ["constant"], "The holy grail if you have flowing water: constant power 24/7, no batteries needed. Output follows the flow rate, so check seasonal variation."),
-          o("genset", "Fuel generator", "Emergency backup + heavy tools (welder). Tops up the bank fast.", 800, [], "Not a primary source — fuel logistics are a pain. But indispensable for backup charging and running heavy tools. Think of it as insurance.",
-            {budget:{min:200,max:5000,step:50,def:1200},choices:[
-              {key:"cond",label:"Unit",opts:[{id:"used",l:"2nd-hand ×0.5",e:"Half price, shorter life, may need carb cleaning"},{id:"new",l:"New ×1.0",e:"Full warranty, reliable, clean start"}]},
-              {key:"charger",label:"Charger",opts:[{id:"none",l:"No charger",e:"Just the generator — you connect batteries manually with your own charger"},{id:"basic",l:"Basic +$100",e:"Simple 10A manual charger: cheap, works, but overcharging risk if left unattended"},{id:"smart",l:"Smart MPPT +$400",e:"Automatic multi-stage charger with desulfation. Safe for LiFePO4, no overcharge risk"}]}
-            ],output:(v)=>{const gm=v.cond==="new"?1.0:0.5;const cc=v.charger==="basic"?100:v.charger==="smart"?400:0;const genBudget=v._budget-cc;const watts=genBudget>200?Math.round(genBudget/gm)*10:200;const chargeRate=watts*0.12;const dailykWh=chargeRate*3/1000;return{fields:[["Rating",watts+"W peak"],["Charge rate",Math.round(chargeRate)+"A @12V"],["Daily top-up",dailykWh.toFixed(1)+" kWh (3h run)"],["Charger",v.charger==="smart"?"Smart MPPT":v.charger==="basic"?"Basic":"Manual"]],spent:Math.round(cc+(watts*gm)),budget:v._budget};}}),
+          o("lights", "LED lights (5-10W each)", "12V LED strips, bulbs. 5 lights × 5W × 5h = 125Wh/day. Brushless DC is best.", 30, ["diyfav"], "PROS: Cheapest load to cover. 12V native = no inverter needed. CONS: Easy to underestimate — a house needs 8-15 lights."),
+          o("phones", "Phone/laptop charging", "2 phones + 1 laptop = ~150Wh/day. USB-C PD is efficient.", 0, [], "PROS: Negligible power draw. USB-C native on 12V. CONS: Everyone in the household adds to this."),
+          o("starlink", "Starlink internet", "50-75W continuous, 24/7 = 1.2-1.8 kWh/day. The single biggest base load for most off-grid setups.", 0, ["needsPower"], "PROS: Fast internet anywhere. CONS: 1.2-1.8 kWh/day — that's a full 100Ah battery just for internet. Size your system around this."),
+          o("dcfridge", "12V DC fridge/freezer", "30-50Ah/day @ 12V = 360-600Wh/day. Chest-style is 2-3× more efficient than upright.", 0, ["needsPower"], "PROS: Fresh food without propane. CONS: Typically your #1 or #2 consumer. DC chest fridge is non-negotiable for efficiency."),
+          o("waterpump", "Water pump", "12V diaphragm pump ~5A when running. 1-2h/day = 60-120Wh/day. Surge on startup.", 0, [], "PROS: 12V pumps are efficient. CONS: AC well pumps draw 1000W+ — need big inverter."),
+          o("tools", "Power tools (occasional)", "Angle grinder: 900W running, 2500W+ surge. Plan for inverter surge capacity, not just watts.", 0, ["needsInv"], "PROS: Cordless tools avoid inverter altogether. CONS: Big AC tools dictate inverter size."),
+          o("kitchen", "Kitchen appliances", "Blender 500W, toaster 800W, microwave 1000W, induction cooktop 1800W. These add up fast.", 0, ["needsInv"], "PROS: Electric cooking is convenient. CONS: Induction cooking needs 1800W+ inverter and massive battery — propane is usually smarter."),
+          o("ac", "AC / climate control", "Small 5000 BTU window AC = 500W. Mini-split = 300-800W. In tropics, this dominates your power budget.", 0, ["needsPower"], "PROS: Survivable comfort in tropics. CONS: AC will 3-5× your solar array size. In Panama, design around this if you need it."),
         ],
       },
       {
-        id: "battery", title: "2 · Battery bank + BMS", optional: true,
-        relevant: (h) => !(h.has("electricity", "generate", "hydro") && h.count("electricity", "generate") === 1),
-        intro: "Where you store energy. Skip-able only if you're hydro-ONLY (river runs all night). Lithium needs an active-balance BMS — non-negotiable.",
+        id: "voltage", title: "2 · Choose system voltage",
+        intro: "12V, 24V, or 48V — this is a ONE-TIME decision that affects everything downstream. 12V is simplest but limits you to ~2000W inverter. 24V handles 3000W comfortably. 48V is the future-proof choice for 3000W+ systems with long wire runs.",
         options: [
-          o("lead", "Lead-acid (2nd-hand)", "Cheapest, heavy. NEVER below 30% or you kill them. ~5 yr life.", 300, ["diyfav"], "PROS: Cheapest per kWh, recyclable, widely available. CONS: Only 50% usable capacity, sulfates if left uncharged, heavy, 500-cycle lifespan.",
-            {budget:{min:100,max:5000,step:100,def:1000},choices:[
-              {key:"qual",label:"Quality",opts:[{id:"used",l:"Used $100/kWh",e:"Unknown history, may be sulfated"},{id:"new",l:"New $150/kWh",e:"Fresh, full capacity, warranty"}]},
-              {key:"vent",label:"Ventilation",opts:[{id:"basic",l:"Basic +$0",e:"Needs airflow outside living space"},{id:"vented",l:"Vented box +$80",e:"Safe for indoor, exhausts hydrogen gas"}]}
-            ],output:(v)=>{const p=v.qual==="new"?150:100;const vc=v.vent==="vented"?80:0;const kwh=Math.round((v._budget-vc)/p*10)/10;const ac=vc+(kwh*p);return{fields:[["Capacity",kwh+"kWh ("+(kwh*0.5)+"kWh usable)"],["Cycles","~500 at 50% DoD"],["Weight",Math.round(kwh*25)+"kg"],["Type","Flooded lead-acid"]],spent:Math.round(ac),budget:v._budget};}}),
-          o("agm", "AGM deep-cycle", "Sealed lead, tolerates deeper draw, low maintenance.", 600, [], "Better than flooded lead-acid — sealed, no maintenance, can discharge to ~60%. Still heavy for the capacity."),
-          o("lifepo4diy", "DIY LiFePO4 + BMS", "Buy 4x 3.2V cells + active-balance BMS (~13.3V 300Ah). Best value.", 1000, ["diyfav"], "Best bang for buck: 80% usable capacity, 10+ year life, half the weight of lead. Building your own pack from prismatic cells saves ~40%."),
-          o("lifepo4drop", "Drop-in LiFePO4", "Turnkey lithium, 10 yr life, usable to ~10%. Premium & easy.", 1800, [], "The easiest path — buy a ready-made battery with built-in BMS. More expensive but zero assembly and fully warranted."),
-          o("experimental", "Sodium-ion / LTO", "New chemistries — cold-tolerant, very safe, still pricey/experimental.", 1600, ["upgrade"], "Interesting for cold climates — LTO charges at -30C and lasts 20,000 cycles. Sodium-ion is cobalt-free. Both are early-stage but promising."),
+          o("v12", "12V system", "Standard for vans, RVs, boats, small cabins. Max ~2000W inverter, 200A+ cables get thick and expensive.", 0, ["diyfav"], "PROS: Simplest — 12V appliances everywhere, easiest to find parts, safest to DIY. CONS: Above 2000W, cables get absurdly thick (4/0 AWG). Higher voltage drop on long runs."),
+          o("v24", "24V system", "Sweet spot for 1000-3000W homes. Thinner wires, better MPPT efficiency, more headroom.", 0, [], "PROS: Half the current of 12V = 1/4 the power loss. Standard for residential off-grid. Runs most inverters efficiently. CONS: Fewer 24V-native appliances. Need DC-DC converter for 12V loads."),
+          o("v48", "48V system", "Modern standard for 3000W+ homes. Thin wires, efficient, future-proof. Required for 5kW+ inverters.", 0, ["upgrade"], "PROS: Lowest current = thinnest wires, most efficient. Required for large inverters (EG4, Sol-Ark). Compatible with server rack batteries. CONS: Limited 48V DC appliances. Must step down for 12V. Higher voltage = more dangerous — respect it."),
         ],
       },
       {
-        id: "controller", title: "3 · Charge controller", optional: true,
-        relevant: (h) => h.has("electricity", "generate", "solar") || h.has("electricity", "generate", "wind"),
-        intro: "Regulates current before it hits the battery. With lithium you MUST use a lithium-compatible (usually MPPT) controller. Splitting the array across several small controllers buys redundancy + shade tolerance.",
+        id: "generate", title: "3 · Solar panels — how many watts?", multi: true,
+        intro: "THE MATH: Daily Wh ÷ sun hours × 1.3 (safety factor) = watts needed. Panama gets ~5 peak sun hours year-round. A 400W panel × 5h = 2000Wh/day theoretical; real-world ~1600Wh after heat/system losses. Pick your panel wattage tier — larger panels have better $/watt but are harder to handle. You can select multiple tiers to mix-and-match.",
         options: [
-          o("pwm", "PWM controller", "Cheapest, does the job, ~20% less efficient than MPPT.", 25, ["diyfav"], "Fine for very small systems. Simple, durable, and cheap — but wastes about 20% of panel potential. Only use with 12V panels and lead-acid."),
-          o("mppt", "MPPT controller", "~20% more harvest, ~40% pricier, often Bluetooth.", 130, [], "The sweet spot. MPPT extracts 20% more power from the same panels, especially in cold or partial shade. The extra cost pays back in 1-2 seasons."),
-          o("mpptlith", "Lithium-compatible MPPT", "Required if you chose any lithium bank.", 250, [], "Non-negotiable with lithium: needs configurable charge profile (14.2V absorption, float at 13.8V or none). Most modern MPPT units support this."),
-          o("split", "Split into several small CCs", "Redundancy + shade tolerance + cheaper thin cables.", 180, ["upgrade"], "Instead of one big controller, use 2-3 smaller ones for different panel orientations. Shade on one string doesn't kill the whole system."),
+          o("panel100", "100W panel × qty", "THE standard small panel. Renogy RNG-100D-SS ~$80. 42×20\", 14 lbs. 36-cell mono, Voc=22V, Vmp=18.6V, Imp=5.4A. Best value in 4-packs ($260-320 for 400W).", 80, ["diyfav"], "PROS: Lightweight (14 lbs), easy to handle solo, fits anywhere. Best $/watt in multi-packs. CONS: More mounting hardware per watt. More wiring connections. $0.80/W retail, $0.65-0.80/W in 4-packs.",
+            {budget:{min:80,max:8000,step:80,def:400},choices:[
+              {key:"qty",label:"How many?",opts:[
+                {id:"1",l:"1 panel (100W)",e:"~500Wh/day — lights + phone only"},
+                {id:"2",l:"2 panels (200W)",e:"~1000Wh/day — lights + laptop + pump"},
+                {id:"4",l:"4 panels (400W)",e:"~2000Wh/day — fridge + Starlink + basics"},
+                {id:"6",l:"6 panels (600W)",e:"~3000Wh/day — all basics + some comfort"},
+                {id:"8",l:"8 panels (800W)",e:"~4000Wh/day — full off-grid home base load"},
+                {id:"12",l:"12 panels (1200W)",e:"~6000Wh/day — family home with margin"}
+              ]},
+              {key:"mount",label:"Mount type",opts:[
+                {id:"zbracket",l:"Z-brackets +$20",e:"Simple, flat mount. RV/van/shed. No tilt."},
+                {id:"tilt",l:"Tilt legs +$45",e:"Adjustable angle. +10-15% yield. Seasonal adjustment."},
+                {id:"ground",l:"Ground rack +$75",e:"Best cooling, optimal tilt, easy cleaning."}
+              ]}
+            ],output:(v)=>{
+              const qty = parseInt(v.qty)||1;
+              const watts = qty*100;
+              const mt = v.mount==="tilt"?45:v.mount==="ground"?75:20;
+              const panelCost = qty>=4?qty*65:qty*80;
+              const dailyWh = Math.round(watts*4.5*0.82);
+              return {fields:[
+                ["Array",watts+"W ("+qty+"× Renogy 100W)"],
+                ["Daily yield","~"+dailyWh+"Wh"],
+                ["$/watt","$"+(qty>=4?"0.65":"0.80")],
+                ["Mount",v.mount==="tilt"?"Tilt legs":v.mount==="ground"?"Ground rack":"Z-brackets"],
+                ["Weight",(qty*14)+" lbs total"]
+              ],spent:Math.round(panelCost+mt*qty),budget:v._budget};
+            }}),
+          o("panel200", "200W panel × qty", "Rich Solar MEGA 200 ~$190 or Renogy RNG-200D ~$220. 58×26\", 27 lbs. Voc=24V, Vmp=20V, Imp=10A. Great for RVs — one panel covers most of the roof width.", 190, [], "PROS: Higher wattage per mounting point. Good RV fit. CONS: Heavier (27 lbs). $0.95-1.10/W — slightly more than 100W multi-packs.",
+            {budget:{min:190,max:8000,step:190,def:570},choices:[
+              {key:"qty",label:"How many?",opts:[
+                {id:"1",l:"1 panel (200W)",e:"~1000Wh/day — basic van/RV setup"},
+                {id:"2",l:"2 panels (400W)",e:"~2000Wh/day — fridge + Starlink + basics"},
+                {id:"3",l:"3 panels (600W)",e:"~3000Wh/day — comfortable RV living"},
+                {id:"4",l:"4 panels (800W)",e:"~4000Wh/day — small cabin, full off-grid"},
+                {id:"6",l:"6 panels (1200W)",e:"~6000Wh/day — family cabin"}
+              ]},
+              {key:"brand",label:"Brand",opts:[
+                {id:"renogy",l:"Renogy $220",e:"Better warranty support, US-based"},
+                {id:"richsolar",l:"Rich Solar $190",e:"Good value, slightly lower price"}
+              ]}
+            ],output:(v)=>{
+              const qty = parseInt(v.qty)||1;
+              const price = v.brand==="renogy"?220:190;
+              const dailyWh = Math.round(qty*200*4.5*0.82);
+              return {fields:[
+                ["Array",(qty*200)+"W ("+qty+"× 200W "+ (v.brand==="renogy"?"Renogy":"Rich Solar")+")"],
+                ["Daily yield","~"+dailyWh+"Wh"],
+                ["$/watt","$"+(price/200).toFixed(2)],
+                ["Weight",(qty*27)+" lbs total"]
+              ],spent:Math.round(qty*price),budget:v._budget};
+            }}),
+          o("panel400", "400W residential panel", "THE 2026 standard. Canadian Solar CS6R-400MS ~$290 or Jinko JKM400M ~$275. 79×39\", 50 lbs. 144 half-cell mono PERC, Voc=49.8V, Vmp=41.7V, Imp=9.6A. Best $/watt for serious systems.", 290, ["upgrade"], "PROS: Best $0.69-0.73/W. Fewer panels = less mounting labor. Half-cell = better shade tolerance. CONS: Heavy (50 lbs) — 2-person lift. Large size needs space. Freight shipping for pallets.",
+            {budget:{min:290,max:12000,step:290,def:1160},choices:[
+              {key:"qty",label:"How many?",opts:[
+                {id:"2",l:"2 panels (800W)",e:"~3280Wh/day — requires 2S on 150/35 controller"},
+                {id:"3",l:"3 panels (1200W)",e:"~4920Wh/day — 3S on 150/60 controller"},
+                {id:"4",l:"4 panels (1600W)",e:"~6560Wh/day — 2S2P on 150/70 controller"},
+                {id:"6",l:"6 panels (2400W)",e:"~9840Wh/day — 3S2P on 150/100 or 250/60"},
+                {id:"8",l:"8 panels (3200W)",e:"~13.1kWh/day — 4S2P on 250/100 controller"},
+                {id:"12",l:"12 panels (4800W)",e:"~19.7kWh/day — 4S3P on 250/100 or RS 450"}
+              ]},
+              {key:"type",label:"Cell type",opts:[
+                {id:"perc",l:"PERC mono +$0",e:"Standard. -0.35%/°C temp coefficient. 80% at yr 25."},
+                {id:"ntype",l:"N-Type TOPCon +$40",e:"Better heat performance. -0.29%/°C. Best for Panama."}
+              ]}
+            ],output:(v)=>{
+              const qty = parseInt(v.qty)||2;
+              const ntype = v.type==="ntype"?40:0;
+              const pp = 290+ntype;
+              const dailyWh = Math.round(qty*400*4.5*0.82);
+              const voc = 49.8; const vmp = 41.7; const imp = 9.6;
+              return {fields:[
+                ["Array",(qty*400)+"W ("+qty+"× 400W "+(v.type==="ntype"?"N-Type":"PERC")+")"],
+                ["Daily yield","~"+dailyWh+"Wh"],
+                ["$/watt","$"+(pp/400).toFixed(2)],
+                ["Cell type",v.type==="ntype"?"N-Type TOPCon":"Mono PERC"],
+                ["Voc per panel","49.8V · Vmp 41.7V · Imp 9.6A"],
+                ["Weight",(qty*50)+" lbs total"]
+              ],spent:Math.round(qty*pp),budget:v._budget};
+            }}),
+          o("panel450n", "450W N-Type (Panama pick)", "Canadian Solar HiKu7 CS7N-450 ~$330. 82×41\", 52 lbs. N-Type TOPCon, Voc=50.2V, Vmp=42.1V, Imp=10.7A. -0.29%/°C — saves ~2% power vs PERC in Panama heat. +15-20 year product warranty.", 330, ["upgrade"], "PROS: Best for hot climates — N-Type temperature coefficient saves real kWh in tropics. Longer warranty. CONS: $0.73/W — slight premium. Very large (82×41\"). Heavy (52 lbs).",
+            {budget:{min:330,max:12000,step:330,def:1320},choices:[
+              {key:"qty",label:"How many?",opts:[
+                {id:"2",l:"2 panels (900W)",e:"~3690Wh/day — 2S on 150/35"},
+                {id:"3",l:"3 panels (1350W)",e:"~5535Wh/day — 3S on 150/60"},
+                {id:"4",l:"4 panels (1800W)",e:"~7380Wh/day — 2S2P on 150/70 or 250/60"},
+                {id:"6",l:"6 panels (2700W)",e:"~11.1kWh/day — 3S2P on 250/60 or RS 450/100"}
+              ]}
+            ],output:(v)=>{
+              const qty = parseInt(v.qty)||2;
+              const dailyWh = Math.round(qty*450*4.5*0.82);
+              return {fields:[
+                ["Array",(qty*450)+"W ("+qty+"× 450W N-Type)"],
+                ["Daily yield","~"+dailyWh+"Wh"],
+                ["$/watt","$0.73"],
+                ["Temp coeff","-0.29%/°C (vs -0.35% PERC)"],
+                ["Best for","Hot climates — Panama ideal"]
+              ],spent:Math.round(qty*330),budget:v._budget};
+            }}),
+          o("panelused", "Used panels (budget)", "250-330W decommissioned residential panels. Grade A: ~$150 (300W, >90% output). Grade B: ~$80 (250W, 80-90%). SanTan Solar, Craigslist, local installers. Best value in solar.", 150, ["diyfav"], "PROS: $0.35-0.50/W — half the price of new. CONS: Unknown history, no warranty, check for snail trails and delamination. Test Voc before buying.",
+            {budget:{min:80,max:3000,step:80,def:450},choices:[
+              {key:"grade",label:"Grade",opts:[
+                {id:"A",l:"Grade A $150",e:"<5yr old, >90% output, clean. Best used value."},
+                {id:"B",l:"Grade B $80",e:"Cosmetic wear, 80-90% output. OK for ground mount."},
+                {id:"C",l:"Grade C $45",e:"Visible wear, 70-80%. Experimental only."}
+              ]},
+              {key:"qty",label:"How many?",opts:[
+                {id:"2",l:"2 panels",e:"~600W — workshop/backup"},
+                {id:"4",l:"4 panels",e:"~1200W — small cabin"},
+                {id:"8",l:"8 panels",e:"~2400W — serious budget array"}
+              ]}
+            ],output:(v)=>{
+              const qty = parseInt(v.qty)||2;
+              const price = v.grade==="A"?150:v.grade==="B"?80:45;
+              const eff = v.grade==="A"?0.90:v.grade==="B"?0.85:0.75;
+              const dailyWh = Math.round(qty*300*eff*4.5*0.82);
+              return {fields:[
+                ["Array","~"+(qty*300)+"W rated ("+qty+"× used 300W Grade "+v.grade+")"],
+                ["Effective","~"+(qty*300*eff)+"W after degradation"],
+                ["Daily yield","~"+dailyWh+"Wh"],
+                ["$/watt","$"+(price/300).toFixed(2)+" ("+v.grade+" grade)"],
+                ["WARNING","Test each panel: Voc within 5% of label"]
+              ],spent:Math.round(qty*price),budget:v._budget};
+            }}),
+          o("wind", "Wind turbine (supplement)", "Primus 400W ~$850 or Ista Breeze 500W ~$500. Complements solar — wind blows at night and in storms. Needs >10mph average. Tower height matters: 30ft minimum.", 750, [], "PROS: Produces when solar doesn't — night, storms, winter. CONS: Moving parts = maintenance. Noisy. Needs consistent wind. Tower adds cost."),
+          o("hydro", "Micro-hydro (holy grail)", "WaterLily ~$400 (100W portable) to ES&D LH1000 ~$2000 (1kW permanent). 24/7 power if you have flowing water. Formula: Watts = Head(ft) × Flow(GPM) ÷ 10.", 1500, ["constant"], "PROS: Runs 24/7 regardless of weather. Often no battery needed. 50-70% efficient vs 15-24% for solar. CONS: Needs flowing water with sufficient head. Seasonal flow variation."),
         ],
       },
       {
-        id: "wiring", title: "4 · Wiring, voltage & cabinet",
-        intro: "Busbars off the battery feed everything: DC loads, chargers, inverter. A DC-DC converter matches 24/48V devices (3D printer, tools). Put it all in a fused cabinet — and drop a fire-ball inside.",
+        id: "controller", title: "4 · Charge controller (MPPT)", optional: true,
+        relevant: (h) => h.any("electricity", "generate"),
+        intro: "THE BRAIN of your system. MPPT extracts ~20-30% more power from the same panels vs PWM. Victron SmartSolar is the gold standard — Bluetooth monitoring, VE.Smart networking, proven reliability. The controller must handle: (A) total panel wattage ÷ battery voltage × 1.25 = amps needed, AND (B) panels in series × Voc × 1.15 (cold safety) < controller max volts. PWM is only for very small 12V systems with 36-cell panels.",
         options: [
-          o("base12", "12V busbar + fuses", "The backbone: thick cable to bank, fused distribution.", 35, [], "Every off-grid system needs this regardless — a fused distribution point from battery to loads. Don't skip the fuses: they prevent fires."),
-          o("dcdc", "+ DC-DC converter", "Run 24/48V devices straight off DC — avoids inverter losses.", 75, ["upgrade"], "If you have 24V tools, a printer, or any non-12V DC gear, this saves the 10-15% inverter loss. Also lets you run thinner cables for those loads."),
-          o("cabinet", "+ fused cabinet + fire-ball", "Cabinet, breakers, and a self-popping fire extinguisher inside.", 130, ["safety"], "A proper enclosure with a fire extinguisher ball is cheap insurance. Battery terminals are the #1 fire ignition source in off-grid systems."),
-          o("faraday", "+ Faraday metal box", "Metal-clad box: lightning / surge / EMP protection.", 90, ["safety"], "Essential in lightning-prone areas and an EMP concern. A simple metal enclosure with filtered cable entry protects your whole system from voltage surges."),
+          o("victron_75_15", "Victron 75/15 — tiny system", "SmartSolar MPPT 75V/15A. ~$120. Max 220W @ 12V, 440W @ 24V. Max Voc: 75V (safe: 1× 36-cell, 2× 36-cell in series). For: 1-2× 100W panels on 12V battery.", 120, [], "PROS: Genuine MPPT in the smallest package. Bluetooth built-in. 5-year warranty. CONS: Limited to 220W. Only 15A charge current."),
+          o("victron_100_20", "Victron 100/20 — small system", "SmartSolar MPPT 100V/20A. ~$145. Max 290W @ 12V, 580W @ 24V. Max Voc: 100V (safe: 3× 36-cell in series). For: 2-3× 100W, or 1× 400W panel on 12V. Most popular entry-level MPPT.", 145, [], "PROS: 20A charging. Handles most 100-400W arrays. Bluetooth. CONS: Limited to 290W on 12V."),
+          o("victron_100_30", "Victron 100/30 — medium-small", "SmartSolar MPPT 100V/30A. ~$135-150. Max 440W @ 12V, 880W @ 24V. For: 3-4× 100W, 2× 200W, or 1× 400W with headroom. Amazon verified price: $135.", 140, [], "PROS: Great value at $135. 30A handles most van/RV setups. CONS: 100V limit — max 2× 60-cell (80V) or 2× 400W in series."),
+          o("victron_100_50", "Victron 100/50 — medium", "SmartSolar MPPT 100V/50A. ~$320. Max 700W @ 12V, 1400W @ 24V. For: 4-6× 100W, or parallel strings of 400W panels. 50A charging — fast battery top-up.", 320, ["upgrade"], "PROS: 50A charging. Good for larger 12V arrays. CONS: 100V limit restricts series strings."),
+          o("victron_150_35", "Victron 150/35 — standard 24V", "SmartSolar MPPT 150V/35A. ~$350. Max 500W @ 12V, 1000W @ 24V, 1500W @ 48V. Max Voc: 150V (safe: 3× 60-cell, 3× 400W). THE most common off-grid controller.", 350, [], "PROS: 150V headroom handles 3× residential panels in series. 35A charging. The sweet spot for 24V systems. CONS: More expensive than 100V series."),
+          o("victron_150_60", "Victron 150/60 — large 24V", "SmartSolar MPPT 150V/60A. ~$480. Max 860W @ 12V, 1720W @ 24V, 2880W @ 48V. For: 3S2P of 400W (2400W) on 48V. Handles most residential off-grid arrays.", 480, ["upgrade"], "PROS: 60A charging. 150V handles big strings. CONS: Price jump from 150/35."),
+          o("victron_150_100", "Victron 150/100 — big system", "SmartSolar MPPT 150V/100A. ~$850. Max 1440W @ 12V, 2880W @ 24V, 5760W @ 48V. For: 4kW+ arrays. Can parallel multiple controllers via VE.Smart.", 850, ["upgrade"], "PROS: 100A charging. Handles 5kW+ at 48V. CONS: Expensive. Overkill for small systems."),
+          o("victron_250_60", "Victron 250/60 — long wire runs", "SmartSolar MPPT 250V/60A. ~$680. Max 250V Voc — run thin 10 AWG wire 200+ ft. For: large ground-mount arrays far from battery. 4-5× 400W in series.", 680, ["upgrade"], "PROS: High voltage = thin wire saves $$$ on long runs. CONS: High voltage DC is dangerous — professional install recommended."),
+          o("pwm", "PWM controller (budget)", "Renogy Wanderer 30A ~$30. Only efficient with 36-cell \"12V\" panels. PWM wastes ~25% of power vs MPPT. OK for a single panel trickle-charging a battery.", 30, ["diyfav"], "PROS: Dirt cheap. Simple. Works. CONS: Wastes 25%+ power. ONLY works with 36-cell panels (Voc~22V). Don't use with 60/72-cell panels (wastes 50%+)."),
+          o("epver", "EPever Tracer (budget MPPT)", "EPever Tracer 40A MPPT ~$100. Decent budget MPPT. Not Victron quality but genuine MPPT tracking. Good for experimental/secondary arrays.", 100, ["diyfav"], "PROS: Real MPPT at $100. 40A capacity. CONS: No Bluetooth (need MT50 meter $30). Less efficient than Victron in partial shade."),
         ],
       },
       {
-        id: "inverter", title: "5 · Inverter (DC → AC)",
-        intro: "Only needed for AC appliances (grinder, washing machine, hairdryer). Size it ~1.25x your biggest AC tool's STARTUP surge. DC-native gear is always more efficient.",
+        id: "battery", title: "5 · Battery bank", multi: true,
+        intro: "WHERE YOUR POWER LIVES when the sun isn't shining. Sizing: (daily Wh ÷ system voltage) × days autonomy ÷ depth of discharge. Example: 2000Wh/day on 12V with 2 days autonomy and 80% DoD (LiFePO4) = 2000÷12×2÷0.8 = 417Ah. You can add more later — parallel batteries are common. BUS BAR topology required for 3+ parallel batteries (equal cable lengths = equal current sharing).",
         options: [
-          o("none", "No inverter — DC only", "Run everything on 12V. Most efficient, most spartan.", 0, [], "The purist approach — run all your loads on DC. No conversion losses. But limits you to 12V appliances (LEDs, pumps, DC fridge, USB charging)."),
-          o("small", "Pure-sine 1000-1500W", "Laptops, blender, small tools. Clean power, efficient.", 320, [], "Good for light AC needs. Will run laptops, TV, blender, small tools. Won't start pumps or compressors with high surge. Check startup current before buying."),
-          o("large", "Pure-sine 3000W+", "Washing machine, angle grinder, big loads.", 550, [], "If you need real AC power — power tools, washing machine, well pump. Size for the STARTUP surge, not running watts. Bigger inverters have higher idle draw."),
-          o("chgr", "Inverter-charger combo", "Inverter + shore/generator charger in one unit.", 1100, [], "One device does both jobs. Saves space and wiring. The charger side can push 50A+ into the battery from generator/shore power. Premium but clean."),
+          o("lifepo4_100ah", "LiFePO4 100Ah drop-in", "Battle Born GC2 100Ah ~$949 or Renogy 100Ah Smart ~$350. 12.8V nominal, 1280Wh, 80% usable (1024Wh). 3000-5000 cycles to 80%. Built-in BMS. 10+ year life.", 350, [], "PROS: 80% usable capacity, 10yr life, zero maintenance, built-in BMS. Half the weight of lead. CONS: Can't charge below 0°C (BMS blocks it). More expensive upfront. Battle Born is premium ($949); Renogy is value ($350).",
+            {budget:{min:350,max:12000,step:350,def:1050},choices:[
+              {key:"qty",label:"How many?",opts:[
+                {id:"1",l:"1× 100Ah (1280Wh)",e:"~1kWh usable — lights + phone + pump for 1 day"},
+                {id:"2",l:"2× 100Ah (2560Wh)",e:"~2kWh — fridge + lights for 2 days"},
+                {id:"4",l:"4× 100Ah (5120Wh)",e:"~4kWh — comfortable small home, 2-3 day autonomy"},
+                {id:"8",l:"8× 100Ah (10.2kWh)",e:"~8kWh — family home, 3-5 day autonomy"}
+              ]},
+              {key:"brand",label:"Brand",opts:[
+                {id:"renogy",l:"Renogy $350",e:"Good value. Bluetooth optional. 5yr warranty."},
+                {id:"battleborn",l:"Battle Born $949",e:"Premium. Heated option. 10yr warranty. US support."},
+                {id:"sok",l:"SOK $280",e:"Budget quality. Metal case, serviceable. Good reviews."}
+              ]}
+            ],output:(v)=>{
+              const qty = parseInt(v.qty)||1;
+              const price = v.brand==="battleborn"?949:v.brand==="sok"?280:350;
+              const totalWh = qty*1280; const usableWh = Math.round(totalWh*0.8);
+              return {fields:[
+                ["Capacity",qty+"× 100Ah = "+(qty*100)+"Ah @ 12.8V"],
+                ["Total energy",(totalWh/1000).toFixed(1)+"kWh ("+usableWh/1000+"kWh usable)"],
+                ["Cycles","3000-5000 to 80%"],
+                ["Life expectancy","10-15 years"],
+                ["Wiring","BUS BAR for 3+ in parallel"],
+                ["Weight",(qty*31)+" lbs total"]
+              ],spent:Math.round(qty*price),budget:v._budget};
+            }}),
+          o("lifepo4_diy", "DIY LiFePO4 (build your own)", "4× 3.2V 280Ah EVE prismatic cells + 120A JBD BMS = ~$500. 12.8V, 3584Wh, 80% usable. ~40% cheaper than drop-in. Same cells used in premium batteries.", 500, ["diyfav"], "PROS: Half the price of drop-in. Same EVE/Lishen cells as premium brands. Learn your system. CONS: Needs assembly knowledge. No warranty. Must top-balance cells before use. BMS configuration required.",
+            {budget:{min:500,max:5000,step:500,def:500},choices:[
+              {key:"cells",label:"Cell capacity",opts:[
+                {id:"280",l:"280Ah (3.6kWh) $500",e:"EVE LF280K — the standard DIY cell. ~$100/cell + $100 BMS."},
+                {id:"304",l:"304Ah (3.9kWh) $560",e:"EVE LF304 — newer, higher capacity. ~$115/cell."}
+              ]}
+            ],output:(v)=>{
+              const ah = v.cells==="304"?304:280;
+              const price = v.cells==="304"?560:500;
+              const wh = ah*12.8;
+              return {fields:[
+                ["Capacity",ah+"Ah @ 12.8V = "+(wh/1000).toFixed(1)+"kWh"],
+                ["Usable",(wh*0.8/1000)+"kWh (80% DoD)"],
+                ["Cost/kWh","$"+(price/(wh/1000)).toFixed(0)],
+                ["vs drop-in","Save ~$200-400 vs equivalent drop-in"],
+                ["Build time","2-4 hours for first pack"],
+                ["REQUIRED","Top-balance cells. Configure BMS. Torque busbars."]
+              ],spent:price,budget:v._budget};
+            }}),
+          o("agm_100ah", "AGM deep-cycle 100Ah", "Renogy AGM 100Ah ~$200 or UPG UB121000 ~$190. 12V, 1200Wh, 50% usable (600Wh). Sealed, no maintenance. 500-800 cycles at 50% DoD.", 200, [], "PROS: Maintenance-free. No venting needed. Better than flooded lead-acid. CONS: Only 50% usable capacity. 500-800 cycle life. Heavy (60 lbs). 3-5 year lifespan."),
+          o("lead_100ah", "Flooded lead-acid 100Ah", "Crown CR-235 ~$130 or Trojan T-105 225Ah ~$180 (6V, need 2). 50% usable. 500 cycles. Requires watering and ventilation. Cheapest upfront.", 130, ["diyfav"], "PROS: Cheapest per Ah. Recyclable. Proven technology. CONS: Only 50% usable. Must check water levels. Produces hydrogen — must vent. Heavy. Shortest lifespan (3-5 years)."),
+          o("sodium", "Sodium-ion / LTO (experimental)", "Sodium-ion: ~$400/kWh, cobalt-free, safe to 0V. LTO: charges at -30°C, 20,000+ cycles. New chemistries — still early/expensive but promising for cold climates.", 1600, ["upgrade"], "PROS: LTO works in extreme cold. Sodium-ion is cobalt-free and safe. CONS: Early-stage, limited availability. Expensive. Lower energy density."),
         ],
       },
       {
-        id: "genint", title: "6 · Generator integration", optional: true,
-        relevant: (h) => h.has("electricity", "generate", "genset"),
-        intro: "You can't dump AC straight into a battery. A LiFePO4 bank especially will pull current until the alternator COOKS — you need a proper charger or careful control.",
+        id: "inverter", title: "6 · Inverter (DC → AC)",
+        intro: "Only needed for AC appliances. Pure sine wave ONLY — modified sine kills electronics. Size for your biggest tool's SURGE (startup) draw, not running watts. A 900W grinder needs 2500W+ surge. 12V systems max out around 2000W — above that, the cables get absurd (4/0 AWG). Go 24V or 48V for bigger inverters.",
         options: [
-          o("accharger", "AC battery charger", "Converts generator AC → DC safely. The clean way.", 150, [], "The correct way: a proper AC-DC charger that matches your battery chemistry. Set it for the right absorption voltage and let it manage the charge profile."),
-          o("alternator", "Engine alternator + control", "Belt-driven, fast charge — but lithium needs a cutoff or it overcharges.", 180, ["risk"], "Fast charging from a vehicle alternator — but dangerous if not controlled. LiFePO4 has unlimited current acceptance below its absorption voltage — the alternator runs full throttle until it overheats. A regulator or battery protect is mandatory."),
+          o("no_inv", "No inverter — DC only", "Run everything on 12V/24V DC. Most efficient: zero conversion losses. LED lights, DC fridge, USB charging, DC water pump all run native.", 0, ["diyfav"], "PROS: Zero conversion loss. Simplest system. No standby draw. CONS: Limits you to DC appliances. No AC tools."),
+          o("inv_1000", "Pure-sine 1000W", "Victron Phoenix 12/1200 ~$380 or Renogy 1000W ~$250. 1000W continuous, 2000W surge. Laptops, TV, blender, small tools. Idle draw ~8-12W.", 300, [], "PROS: Handles most small AC loads. Low idle draw. CONS: Won't start pumps or big motors. Check surge rating."),
+          o("inv_2000", "Pure-sine 2000W", "Victron MultiPlus 12/2000 ~$900 or Renogy 2000W ~$350. 2000W continuous, 4000W surge. Handles microwave, washing machine, power tools. THE standard for 12V van/RV builds.", 400, [], "PROS: Runs most household appliances. 4000W surge handles motor startup. CONS: On 12V, draws 167A at full load — needs 2/0 AWG cables. Idle draw ~15-25W."),
+          o("inv_3000", "Pure-sine 3000W+ (24/48V)", "Victron MultiPlus-II 48/3000 ~$1200 or EG4 3000W ~$700. 3000W continuous, 6000W surge. Whole-home capable. Requires 24V or 48V system — 12V is impractical at this level.", 800, ["upgrade"], "PROS: Runs everything — well pump, AC, induction cooktop, full kitchen. CONS: Needs 24V or 48V. Idle draw ~25-40W. 3000W on 12V draws 250A — don't do it."),
+          o("inv_charger", "Inverter-charger combo", "Victron MultiPlus-II 48/3000/35 ~$1400. Inverter + AC charger + transfer switch in one unit. Charges battery from generator or shore power. Clean, space-saving.", 1400, [], "PROS: One device does 3 jobs. Automatic transfer. Clean install. CONS: Premium price. More complex to configure."),
         ],
       },
       {
-        id: "optimize", title: "7 · Optimize & protect", multi: true, optional: true,
-        intro: "Squeeze comfort from a small system, and watch it so it lasts.",
+        id: "wiring", title: "7 · Wiring & protection", multi: true,
+        intro: "THE STUFF THAT PREVENTS FIRES. Fuse BOTH sides of the charge controller — PV-side protects the array; battery-side protects against the battery dumping thousands of amps into a shorted controller. MC4 connectors need a proper crimper — generic pliers = fire risk. Busbars for 3+ parallel batteries with EQUAL cable lengths.",
         options: [
-          o("shunt", "Battery monitor / shunt", "Know your real state of charge — stop guessing, stop over-draining.", 80, [], "A shunt is the single most useful accessory. Without it, you're guessing state of charge by voltage — which is wildly inaccurate under load. A Victron SmartShunt or similar pays for itself."),
-          o("efficient", "Efficient loads (LED, brushless)", "LED lights, brushless 12V fans, efficient compressor.", 120, ["diyfav"], "Every watt saved is one you don't have to generate. LED bulbs use 90% less than incandescent. Brushless DC fans are 70% more efficient than AC. Cheap upgrades that drastically reduce system size."),
-          o("tools", "Battery power tools", "Bonus power that won't black out the house at night.", 250, [], "Cordless power tools: their batteries are a separate, portable power bank. Charge them during the day, use them at night without touching the house bank. Also convenient for remote work."),
-          o("dumpload", "Dump load / smart controller", "Divert surplus to water heating / freezer when the bank is full.", 160, ["upgrade"], "When the battery is full and the sun is still shining, dump load diverts that energy to something useful: heating water, running a freezer, or desalination. Turns wasted surplus into value."),
+          o("pv_wire", "10 AWG PV wire + MC4", "10 AWG solar cable ~$0.80/ft. MC4 connectors ~$2 each. Standard for most residential arrays up to 30A. 8 AWG for long runs (>50ft). Must use MC4-specific crimper.", 80, ["safety"], "PROS: UV-resistant, rated for 90°C wet, 30+ year life. CONS: Cheap MC4s from Amazon may not be genuine — buy from NAZ Solar Electric or signature solar."),
+          o("combiner", "Combiner box (3+ parallel strings)", "MidNite MNPV6 6-circuit ~$123. Required by code when 3+ strings are in parallel. Includes breakers/fuses per string. DIN rail mount. 150VDC or 250VDC models.", 123, ["safety"], "PROS: Code-compliant. Fuses each string individually. Clean wiring. CONS: Another box to mount and wire."),
+          o("breakers", "DC breakers + fuses", "MidNite MNEPV 15-63A DC breaker ~$30 each. ANL fuse 200A ~$18 for battery main. Class-T fuse 200A ~$40 (fast-acting, for LiFePO4 — these banks can dump 5000A into a short).", 80, ["safety"], "PROS: Proper DC-rated breakers don't arc-weld themselves. CONS: DC breakers are more expensive than AC — don't substitute."),
+          o("busbar", "Busbar kit", "Blue Sea 250A busbar ~$35 or Victron Lynx Distributor ~$170. Required for 3+ parallel batteries. Equal-length cables from each battery to busbar = equal current sharing.", 50, [], "PROS: Prevents end batteries from failing first. Clean distribution point. CONS: Another component to mount. Must use proper torque."),
+          o("grounding", "Grounding system", "5/8\" × 8' copper-clad ground rod ~$20. #6 AWG bare copper ~$1.50/ft. Ground busbar. Bond all panel frames, rails, and equipment to single earth ground.", 60, ["safety"], "PROS: Lightning protection, safety, code requirement. CONS: Driving an 8-ft rod is work. Rocky soil may need multiple rods."),
+          o("surge", "Surge protection", "MidNite MNSPD-300-DC ~$90. 50kA surge capacity. Protects against nearby lightning strikes and grid surges. Type 2 SPD. Mount at combiner box and main panel.", 90, ["safety"], "PROS: Cheap insurance against $1000s in equipment damage. CONS: Degrades with each surge — replace after major events."),
+          o("monitor", "Battery monitor / shunt", "Victron SmartShunt 500A ~$130 or BMV-712 ~$210. Know your REAL state of charge — voltage is wildly inaccurate under load. The single most useful accessory in any off-grid system.", 130, [], "PROS: Tells you exactly how full your battery is. Tracks history. Bluetooth to phone. CONS: $130 — but pays for itself by preventing battery murder."),
         ],
       },
+      {
+        id: "backup", title: "8 · Backup generator", optional: true, multi: true,
+        intro: "The insurance policy. Even the best solar system has bad weeks. A generator that hasn't been tested in months is not a backup — it's a paperweight. Inverter generators produce clean sine wave power (safe for electronics). Conventional generators are cheaper but dirtier power.",
+        options: [
+          o("gen_2000", "2000W inverter generator", "Champion 2000W ~$550 or Honda EU2200i ~$1100. Clean power, ~0.4 gal/hr at half load. Runs fridge + lights + charges battery. Quiet (53-59 dB).", 550, [], "PROS: Quiet, efficient, clean power. CONS: 2000W won't run big tools. Fuel storage needed."),
+          o("gen_3500", "3500W+ generator", "Predator 3500W ~$800 or Champion 3500W ~$700. Runs well pump, washing machine, charges battery fast. ~0.5-0.7 gal/hr.", 750, [], "PROS: Runs heavy loads. Faster battery charging. CONS: Heavier. More fuel consumption. Louder."),
+          o("gen_charger", "AC battery charger", "Victron Blue Smart IP22 30A ~$170. Converts generator AC → clean DC for battery charging. Programmable for LiFePO4/AGM/Flooded. Essential if your generator doesn't have DC output.", 170, [], "PROS: Safe, controlled charging. Multi-chemistry. CONS: Another component. 30A @ 12V = 360W charging — slow."),
+          o("gen_autostart", "Auto-start controller", "Magnum ME-AGS-N ~$260 or Atkinson GSCM-Mini ~$230. Automatically starts generator when battery hits low voltage. Stops when charged. Two-wire start compatible.", 250, ["upgrade"], "PROS: Fully automatic backup. No manual intervention. CONS: Only works with electric-start generators. More wiring complexity."),
+        ],
+      },
+      // ---- Security & Comms ----
       // ---- Security options (absorbed from Security thematic) ----
       {
-        id: "detect", title: "8 · Security — detect & deter", multi: true,
+        id: "detect", title: "9 · Security — detect & deter", multi: true,
         intro: "Half the job is deterrence — they'll skip the place with a barking dog. Stack a few layers.",
         options: [
           o("dog", "Watchdog", "Hears & smells trouble before you do. Best low-tech alarm there is.", 100, [], "The best security system ever: a barking dog deters most intruders, alerts you to everything (including fires and wild animals), and costs food and love. Don't underestimate this."),
@@ -166,7 +342,7 @@ const THEMATICS = {
         ],
       },
       {
-        id: "harden", title: "9 · Harden the home", multi: true, optional: true,
+        id: "harden", title: "10 · Harden the home", multi: true, optional: true,
         intro: "Make at least one part of the house genuinely secure.",
         options: [
           o("door", "Strong door + earthbag walls", "Earthbag is bullet- & fire-proof; add a heavy door barred inside.", 300, [], "Earthbag walls (stacked bags of subsoil) are bulletproof and fireproof. Add a heavy steel door with interior bar — you now have a safe room. The simplest hardening."),
@@ -175,7 +351,7 @@ const THEMATICS = {
         ],
       },
       {
-        id: "fire", title: "10 · Fire safety", multi: true,
+        id: "fire", title: "11 · Fire safety", multi: true,
         intro: "Your DIY electrics are the #1 fire risk, and you're far from any fire brigade. Be over-stocked.",
         options: [
           o("fireball", "Fire-balls (auto extinguishers)", "Sit in the battery cabinet; pop & smother a fire automatically.", 90, ["safety"], "Tennis-ball sized auto-extinguishers. When a fire starts nearby, they pop and release dry chemical. Place one in your battery cabinet and one near the inverter. Cheap fire insurance."),
@@ -185,7 +361,7 @@ const THEMATICS = {
         ],
       },
       {
-        id: "community", title: "11 · Community link", optional: true,
+        id: "community", title: "12 · Community link", optional: true,
         intro: "A neighbour network beats any gadget — security, advice, seeds, extra hands.",
         options: [
           o("radionet", "Radio / mesh neighbour net", "Stay in touch with neighbours for help & check-ins.", 150, [], "A VHF or Meshtastic network connecting your neighbours. Check in daily, share warnings, help each other. Social resilience is the strongest security you can buy."),
@@ -194,7 +370,7 @@ const THEMATICS = {
       },
       // ---- Communications options (absorbed from Communications thematic) ----
       {
-        id: "localcomms", title: "12 · Local / short-range comms", multi: true,
+        id: "localcomms", title: "13 · Local / short-range comms", multi: true,
         intro: "Talk to people on or near the property without any internet.",
         options: [
           o("vhf", "VHF radio", "Marine/handheld voice — essential on a boat & between buildings.", 120, [], "Marine VHF is mandatory for boat dwellers. Handheld VHF radios work across a homestead. No infrastructure needed — just two radios on the same channel."),
@@ -203,7 +379,7 @@ const THEMATICS = {
         ],
       },
       {
-        id: "internet", title: "13 · Internet / long-range comms", multi: true,
+        id: "internet", title: "14 · Internet / long-range comms", multi: true,
         intro: "Your link to income and the world. Starlink is the off-grid game-changer — but it runs 24/7 and eats power.",
         options: [
           o("starlink", "Starlink", "High-speed anywhere. The income enabler — watch the power draw.", 499, ["needsPower"], "True game-changer: 100+ Mbps anywhere with a clear sky. But draws 50-100W continuous — that's 1.2-2.4 kWh/day. Make sure your solar bank can handle the always-on load."),
@@ -213,7 +389,7 @@ const THEMATICS = {
         ],
       },
       {
-        id: "commspower", title: "14 · Comms power & resilience", optional: true,
+        id: "commspower", title: "15 · Comms power & resilience", optional: true,
         intro: "Comms are only as reliable as the power behind them.",
         options: [
           o("dedicated", "Dedicated solar + battery", "A small separate system so comms survive a main-bank failure.", 300, [], "A small 50W panel + 50Ah battery just for your router and radios. Even if your main system fails, you still have comms. This saves you when everything else is down."),
@@ -365,12 +541,12 @@ const SALTY = ["tropics", "maritime"];
 
 const CARDS = [
   { id: "delam", sev: "warn", title: "Two panels delaminated", color: C.power,
-    trigger: (h) => h.has("electricity", "generate", "solar") && SALTY.includes(h.climate),
+    trigger: (h) => hasSolar(h) && SALTY.includes(h.climate),
     body: "Eight months in, two of your salvaged panels bubble and delaminate under relentless UV and salt air — just like a real case in coastal Florida where a DIYer lost 12 of 16 panels to golf-ball-sized hail the following spring.",
     lesson: "In salty/UV climates, salvaged panels age fast — and a single hail storm can wipe you out. Choose panels rated Class 4 for hail, install at steep angles to shed debris, and keep spares. A ground-mount is more exposed than roof — factor that in." },
 
   { id: "altcook", sev: "bad", title: "The alternator cooked the pack", color: C.power,
-    trigger: (h) => h.has("electricity", "genint", "alternator") && (h.has("electricity", "battery", "lifepo4diy") || h.has("electricity", "battery", "lifepo4drop")),
+    trigger: (h) => h.has("electricity", "genint", "alternator") && hasLithium(h),
     body: "You belt-charge the LiFePO4 bank off the engine alternator. It pulls hard and never lets up — the alternator overheats and burns out. This exact failure happens in DIY van builds every year.",
     lesson: "LiFePO4 has huge charge-acceptance: it won't tell the alternator to stop. A 100Ah lithium bank can pull 200A+ from a 120A-rated alternator until it smokes. Use a DC-DC charger (Victron Orion, Renogy) that limits current and has temperature protection." },
 
@@ -380,12 +556,12 @@ const CARDS = [
     lesson: "Lead-acid below 50% DoD causes irreversible sulfation — below 30% and the plates are permanently damaged. Without a shunt you're flying blind. Install a battery monitor (Victron BMV $80) and never discharge below 50% for longevity." },
 
   { id: "lifepo4cold", sev: "warn", title: "BMS blocked charging - it's freezing", color: C.power,
-    trigger: (h) => (h.has("electricity", "battery", "lifepo4diy") || h.has("electricity", "battery", "lifepo4drop")) && COLD.includes(h.climate),
+    trigger: (h) => hasLithium(h) && COLD.includes(h.climate),
     body: "Winter morning in Montana, sun blazing — but your BMS refuses the charge. LiFePO4 below 0°C cannot be charged without plating lithium metal. The bank sits dead empty in the cold.",
     lesson: "Real Canadian off-gridders have been stranded by this. Solutions: self-heating batteries (Battle Born heated), keep bank in an insulated/heated enclosure, switch to LTO or sodium-ion which tolerate -20°C, or use a small heating pad powered by a separate low-voltage circuit." },
 
   { id: "onesource", sev: "warn", title: "A cloudy week, everything dark", color: C.power,
-    trigger: (h) => h.count("electricity", "generate") === 1 && h.has("electricity", "generate", "solar"),
+    trigger: (h) => h.count("electricity", "generate") === 1 && hasSolar(h),
     body: "Five grey days in a row. Solar-only, the bank crawls toward empty. You're rationing the fridge and Starlink — the same mistake a Michigan family made during a winter with only 4 hours of weak daily sun.",
     lesson: "Winter solar output is 10-25% of summer in northern climates. Size for the worst week, not the best day. Add wind (which produces more in winter), hydro, or at minimum double your panel count for December." },
 
@@ -395,12 +571,12 @@ const CARDS = [
     lesson: "A California family's well pump melted when the water table dropped 40 feet below the intake — no dry-run sensor installed. Always install a dry-run protection sensor. Monitor seasonal water levels and pair hydro with solar." },
 
   { id: "invsurge", sev: "warn", title: "Grinder tripped the inverter", color: C.power,
-    trigger: (h) => h.has("electricity", "inverter", "small") && (h.has("food", "preserve", "dcfridge") || h.has("electricity", "optimize", "tools")),
+    trigger: (h) => h.has("electricity", "inverter", "inv_1000") && h.has("food", "preserve", "dcfridge"),
     body: "You fire up an angle grinder; its startup surge spikes past your 1000W inverter and it cuts out mid-cut.",
     lesson: "A 900W grinder needs 2500W+ surge to start. Size inverter at 1.25-1.5x your biggest tool's SURGE rating, not running watts. Better: use brushless DC tools that draw 60% less and run off battery." },
 
   { id: "genfail", sev: "warn", title: "Generator won't start", color: C.power,
-    trigger: (h) => h.has("electricity", "generate", "genset"),
+    trigger: (h) => hasBackup(h),
     body: "Cloudy week, you're at 30% battery. You pull the generator cord. Nothing. Carburetor's gummed up from ethanol gas that went bad months ago.",
     lesson: "Real Oregon homesteaders learned: ethanol gas degrades in 30 days. Use ethanol-free gas + stabilizer (Sta-Bil), run the carburetor dry before storage, or convert to propane with a dual-fuel kit — propane never goes bad. An untested backup isn't a backup." },
 
@@ -435,7 +611,7 @@ const CARDS = [
     lesson: "Real off-gridders couple electric pumps with gravity or manual backup. A 12V Shurflo pump ($150) is great until the bank dies. A manual hand pump ($200) on the same well is cheap insurance. Elevated secondary tank for gravity feed = zero power needed." },
 
   { id: "fridgedrain", sev: "warn", title: "The fridge ate the bank", color: C.power,
-    trigger: (h) => h.has("food", "preserve", "dcfridge") && (h.has("electricity", "battery", "lead") || h.count("electricity", "generate") === 1),
+    trigger: (h) => h.has("food", "preserve", "dcfridge") && (h.has("electricity", "battery", "lead_100ah") || h.count("electricity", "generate") === 1),
     body: "Your DC fridge is the single biggest load — an Arizona couple's old compressor fridge drained batteries before dawn every night, consuming 3x what they expected.",
     lesson: "A 12V chest fridge can draw 50-80 Ah/day — typically your #1 consumer. Test actual usage with a Kill-A-Watt. Insulate the box with an extra blanket in winter. Set thermostat one degree warmer (saves 10-15%). Propane fridges use zero electricity." },
 
@@ -455,7 +631,7 @@ const CARDS = [
     lesson: "A real Sierra Nevada cabin was burglarized for $2,400 in batteries — thieves cut a padlock and loaded a truck. Install a cellular security cam, hardened battery box locks, and a Meshtastic LoRa node ($80) for off-grid text communication over kilometers." },
 
   { id: "elecfire", sev: "bad", title: "Fire in the battery box", color: C.sec,
-    trigger: (h) => h.any("electricity", "generate") && !h.has("electricity", "wiring", "cabinet") && !h.has("electricity", "fire", "fireball"),
+    trigger: (h) => h.any("electricity", "generate") && !h.has("electricity", "wiring", "breakers") && !h.has("electricity", "fire", "fireball"),
     body: "A loose battery terminal arcs, igniting stored cardboard nearby. The shed fills with toxic smoke — fire department is 35 minutes out.",
     lesson: "This exact fire happened in rural Colorado: a loose 12V terminal created resistance, arced, and ignited boxes stored nearby. Torque terminals to spec (6-8 Nm), use anti-corrosion washers, mount a fire extinguisher inside the battery enclosure, and NEVER store combustibles near batteries." },
 
@@ -471,7 +647,7 @@ const CARDS = [
     lesson: "This is what resilience looks like. A real Hawaii family weathered a 3-week volcanic smog event that cut all road access — they had ample water and power because they overbuilt. Redundancy isn't expensive; it's what lets you sleep through the storm." },
 
   { id: "resilientpower", sev: "good", title: "Two sources saved you", color: C.power,
-    trigger: (h) => h.count("electricity", "generate") >= 2 && h.any("electricity", "optimize"),
+    trigger: (h) => h.count("electricity", "generate") >= 2 && h.has("electricity", "wiring", "monitor"),
     body: "A grey week knocked out solar — but your second source carried the load. The battery monitor kept you from panicking. You barely noticed the lack of sun.",
     lesson: "A Maine family with 2kW solar + 10kWh battery + wood stove rode out a 10-day ice storm that left the entire grid dead. They sized for winter, practiced load-shedding (pump only during solar hours), and had integrated backup. Their grid-tied neighbors had nothing." },
 ];
@@ -536,19 +712,19 @@ function getDecay(H, climate) {
 
   // Electricity / battery
   const genCount = H.count("electricity", "generate");
-  const hasSolar = H.has("electricity", "generate", "solar");
+  const hasSolarLocal = hasSolar(H);
   const hasHydro = H.has("electricity", "generate", "hydro");
   const hasWind = H.has("electricity", "generate", "wind");
-  const hasGenset = H.has("electricity", "generate", "genset");
-  const hasEfficient = H.has("electricity", "optimize", "efficient");
+  const hasGensetLocal = hasBackup(H);
+  const hasMonitor = H.has("electricity", "wiring", "monitor");
   const hasBattery = H.any("electricity", "battery");
-  const isLithium = H.has("electricity", "battery", "lifepo4diy") || H.has("electricity", "battery", "lifepo4drop");
+  const isLithium = hasLithium(H);
   const winterPenalty = isCold ? 2.5 : 0; // Winter = way less solar
   const cloudPenalty = isTropical ? 1.0 : 0; // Tropical = cloudy season
   const genBonus = genCount * 0.4; // Each source helps
-  const solarOnlyPenalty = genCount === 1 && hasSolar ? 1.5 : 0; // Solar-only suffers
+  const solarOnlyPenalty = genCount === 1 && hasSolarLocal ? 1.5 : 0; // Solar-only suffers
   const hydroBonus = hasHydro ? 1.0 : 0; // Hydro runs 24/7
-  const efficientBonus = hasEfficient ? 0.8 : 0;
+  const efficientBonus = (hasMonitor || H.has("electricity","wiring","pv_wire")) ? 0.8 : 0;
   const lithiumBonus = isLithium ? 0.3 : 0; // Lithium has more usable capacity
   const batteryDebt = !hasBattery ? 5.0 : 0; // No battery = near-impossible
 
@@ -1278,8 +1454,10 @@ export default function App() {
   function applyPreset() {
     const s = emptySel();
     s.electricity = {
-      generate: ["solar", "genset"], battery: "lifepo4diy",
-      controller: "mpptlith", wiring: "base12", inverter: "small", optimize: ["shunt", "efficient"],
+      needs: ["lights","phones","starlink","dcfridge","waterpump"], voltage: "v24",
+      generate: ["panel400","panel400"], controller: "victron_150_35",
+      battery: "lifepo4_100ah", inverter: "inv_2000",
+      wiring: ["pv_wire","busbar","breakers","monitor"], backup: ["gen_2000"],
       detect: ["dog", "motion"], fire: ["fireball"],
       localcomms: ["vhf"], internet: ["starlink"],
     };
@@ -1565,13 +1743,13 @@ export default function App() {
           const cl = CLIMATES.find((c) => c.id === cfg.climate);
           const sp = SETUPS.find((s) => s.id === cfg.setup);
           const genLabels = [];
-          if (H.has("electricity", "generate", "solar")) genLabels.push("Solar");
+          if (hasSolar(H)) genLabels.push("Solar");
           if (H.has("electricity", "generate", "wind")) genLabels.push("Wind");
           if (H.has("electricity", "generate", "hydro")) genLabels.push("Hydro");
-          if (H.has("electricity", "generate", "genset")) genLabels.push("Genset");
+          if (hasBackup(H)) genLabels.push("Genset");
           if (genLabels.length === 0) genLabels.push("—");
           const battLabel = H.any("electricity", "battery")
-            ? (H.has("electricity", "battery", "lifepo4diy") || H.has("electricity", "battery", "lifepo4drop") ? "LiFePO4" : "Lead-acid")
+            ? (hasLithium(H) ? "LiFePO4" : "Lead-acid")
             : "none";
           const genStr = genLabels.join(" + ") + (battLabel !== "none" ? " + " + battLabel : "");
           const waterSources = [];
