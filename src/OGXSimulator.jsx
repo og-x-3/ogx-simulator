@@ -66,20 +66,22 @@ const THEMATICS = {
         id: "generate", title: "1 · Generate power", multi: true,
         intro: "Start with HOW you make electricity. You can pick more than one — redundancy is the whole point.",
         options: [
-          o("solar", "Solar panels", "Most accessible, scalable, reliable. A 100W panel ≈ 4A in good sun.", 700, ["needsCC"], "PROS: Most accessible, panels keep getting cheaper, 25yr lifespan, works everywhere sun shines. CONS: Only generates during daytime, needs battery for night use, large roof space for meaningful power.",
+          o("solar", "Solar panels", "Most accessible, scalable, reliable. Pick panel size, add a charge controller.", 290, ["needsCC"], "PROS: Most accessible, panels keep getting cheaper, 25yr lifespan, works everywhere sun shines. CONS: Only generates during daytime, needs battery for night use, large roof space for meaningful power.",
             {budget:{min:200,max:10000,step:100,def:2000},choices:[
-              {key:"cond",label:"Panels",opts:[{id:"used",l:"2nd-hand $0.40/W",e:"70% output, shorter life, best for tight budgets"},{id:"new",l:"New $1.05/W",e:"Full output, 25yr warranty, reliable"}]},
+              {key:"cond",label:"Condition",opts:[{id:"used",l:"2nd-hand $0.35/W",e:"70% output, shorter life, best for tight budgets"},{id:"new",l:"New $0.73/W",e:"Full output, 25yr warranty, reliable"}]},
               {key:"type",label:"Type",opts:[{id:"rigid",l:"Rigid",e:"Best efficiency, 25yr life, standard choice"},{id:"flex",l:"Flex ×1.4",e:"Lightweight, curved surfaces, lower efficiency"},{id:"bifacial",l:"Bifacial ×1.3",e:"Dual-sided, +15% from ground reflection"}]},
+              {key:"size",label:"Panel size",opts:[{id:"100",l:"100W",e:"Small panel, easy to carry, ~$80-120 each"},{id:"200",l:"200W",e:"Good balance, most common, ~$150-250"},{id:"400",l:"400W",e:"Large residential panel, ~$250-400, fewer connections"},{id:"550",l:"550W",e:"Commercial size, max watts per panel, ~$350-500"}]},
+              {key:"cc",label:"Charge controller",opts:[{id:"none",l:"No CC +$0",e:"Direct connect — risky, no regulation, not recommended"},{id:"pwm",l:"PWM +$40",e:"Basic regulation, ~20% less harvest, works with lead-acid"},{id:"mppt",l:"MPPT +$180",e:"+20% more harvest, works with any battery, essential for lithium"}]},
               {key:"mount",label:"Mount",opts:[{id:"roof",l:"Roof +$0",e:"Simplest, uses existing structure"},{id:"ground",l:"Ground +$200",e:"Accessible, better airflow"},{id:"tracker",l:"Tracker +$350",e:"+30% yield, tracks sun"}]},
               {key:"cool",label:"Cooling",opts:[{id:"none",l:"None",e:"Free, panels run hot (-0.4%/°C)"},{id:"passive",l:"Passive +$50",e:"Air gap, -10°C, +10% output"},{id:"active",l:"Active +$120",e:"Water mist, -20°C, +15%"}]}
-            ],output:(v)=>{const w=v.cond==="new"?1.05:0.40;const tm=v.type==="rigid"?1:v.type==="flex"?1.4:1.3;const mc=v.mount==="ground"?200:v.mount==="tracker"?350:0;const cc=v.cool==="passive"?50:v.cool==="active"?120:0;const pb=v._budget-mc-cc;const w2=pb>0?Math.round(pb/(w*tm)):0;const ac=mc+cc+(w2*w*tm);return{fields:[["Array size",(w2>=1000?(w2/1000).toFixed(1)+"kW":w2+"W")],["Daily yield",Math.round(w2*3.5/1000*10)/10+"kWh/day"],["Monthly",Math.round(w2*3.5*30/1000)+"kWh/mo"],["Cost/W","$"+(w*tm).toFixed(2)]],spent:Math.round(ac),budget:v._budget};}}),
+            ],output:(v)=>{const w=v.cond==="new"?0.73:0.35;const tm=v.type==="rigid"?1:v.type==="flex"?1.4:1.3;const pw=parseInt(v.size)||200;const ccc=v.cc==="pwm"?40:v.cc==="mppt"?180:0;const mc=v.mount==="ground"?200:v.mount==="tracker"?350:0;const clc=v.cool==="passive"?50:v.cool==="active"?120:0;const fixedCosts=mc+clc+ccc;const panelBudget=v._budget-fixedCosts;const panelCost=w*tm*pw;const count=panelBudget>0?Math.max(1,Math.floor(panelBudget/panelCost)):0;const panelSpend=count*panelCost;const totalW=count*pw;const ac=fixedCosts+panelSpend;const dailyKwh=Math.round(totalW*3.5/1000*10)/10;return{fields:[["Panels",count+"x "+pw+"W"],["Array size",(totalW>=1000?(totalW/1000).toFixed(1)+"kW":totalW+"W")],["Daily yield",dailyKwh+" kWh/day"],["Monthly",Math.round(totalW*3.5*30/1000)+" kWh/mo"],["Controller",v.cc==="mppt"?"MPPT":v.cc==="pwm"?"PWM":"None"],["Cost/W","$"+(w*tm).toFixed(2)]],spent:Math.round(ac),budget:v._budget};}}),
           o("wind", "Wind turbine", "Great in windy/maritime spots. Charges day and night when it blows.", 750, ["needsCC"], "PROS: Complements solar perfectly — produces at night and in cloudy weather. CONS: Needs consistent wind >8mph, moving parts need maintenance, can be noisy.",
             {budget:{min:500,max:8000,step:100,def:3000},choices:[
-              {key:"cond",label:"Unit",opts:[{id:"used",l:"Used $0.50/W",e:"Cheaper but shorter lifespan, less efficient"},{id:"new",l:"New $0.80/W",e:"Full rated output, 20yr lifespan, warranty"}]},
+              {key:"cond",label:"Unit",opts:[{id:"used",l:"Used $0.40/W",e:"Cheaper but shorter lifespan, less efficient"},{id:"new",l:"New $0.70/W",e:"Full rated output, 20yr lifespan, warranty"}]},
               {key:"tower",label:"Tower",opts:[{id:"low",l:"30ft +$0",e:"Lowest cost, but more turbulence"},{id:"mid",l:"60ft +$300",e:"Better wind, less turbulence"},{id:"high",l:"100ft +$800",e:"Best wind, highest output"}]}
-            ],output:(v)=>{const wp=v.cond==="new"?0.80:0.50;const tc=v.tower==="mid"?300:v.tower==="high"?800:0;const watts=Math.round((v._budget-tc)/wp/100)*100;const ac=tc+(watts*wp);return{fields:[["Rating",watts+"W"],["Est. monthly",Math.round(watts*2.5*30/1000)+"kWh"],["Tower","30ft"],["Cost/W","$"+wp.toFixed(2)]],spent:Math.round(ac),budget:v._budget};}}),
-          o("hydro", "Micro-hydro", "If you have a river: cheap, constant, often no battery needed.", 900, ["constant"], "The holy grail if you have flowing water: constant power 24/7, no batteries needed. Output follows the flow rate, so check seasonal variation."),
-          o("genset", "Fuel generator", "Emergency backup + heavy tools (welder). Tops up the bank fast.", 800, [], "Not a primary source — fuel logistics are a pain. But indispensable for backup charging and running heavy tools. Think of it as insurance.",
+            ],output:(v)=>{const wp=v.cond==="new"?0.70:0.40;const tc=v.tower==="mid"?300:v.tower==="high"?800:0;const watts=Math.round((v._budget-tc)/wp/100)*100;const ac=tc+(watts*wp);return{fields:[["Rating",watts+"W"],["Est. monthly",Math.round(watts*2.5*30/1000)+"kWh"],["Tower","30ft"],["Cost/W","$"+wp.toFixed(2)]],spent:Math.round(ac),budget:v._budget};}}),
+          o("hydro", "Micro-hydro", "If you have a river: cheap, constant, often no battery needed.", 300, ["constant"], "The holy grail if you have flowing water: constant power 24/7, no batteries needed. Output follows the flow rate, so check seasonal variation."),
+          o("genset", "Fuel generator", "Emergency backup + heavy tools (welder). Tops up the bank fast.", 550, [], "Not a primary source — fuel logistics are a pain. But indispensable for backup charging and running heavy tools. Think of it as insurance.",
             {budget:{min:200,max:5000,step:50,def:1200},choices:[
               {key:"cond",label:"Unit",opts:[{id:"used",l:"2nd-hand ×0.5",e:"Half price, shorter life, may need carb cleaning"},{id:"new",l:"New ×1.0",e:"Full warranty, reliable, clean start"}]},
               {key:"charger",label:"Charger",opts:[{id:"none",l:"No charger",e:"Just the generator — you connect batteries manually with your own charger"},{id:"basic",l:"Basic +$100",e:"Simple 10A manual charger: cheap, works, but overcharging risk if left unattended"},{id:"smart",l:"Smart MPPT +$400",e:"Automatic multi-stage charger with desulfation. Safe for LiFePO4, no overcharge risk"}]}
@@ -89,17 +91,17 @@ const THEMATICS = {
       {
         id: "battery", title: "2 · Battery bank + BMS", optional: true,
         relevant: (h) => !(h.has("electricity", "generate", "hydro") && h.count("electricity", "generate") === 1),
-        intro: "Where you store energy. Skip-able only if you're hydro-ONLY (river runs all night). Lithium needs an active-balance BMS — non-negotiable.",
+        intro: "Where you store energy. Skip-able only if you're hydro-ONLY (river runs all night). Lithium needs an active-balance BMS — non-negotiable. Higher voltage (24V/48V) = fewer charge controllers needed for same wattage.",
         options: [
-          o("lead", "Lead-acid (2nd-hand)", "Cheapest, heavy. NEVER below 30% or you kill them. ~5 yr life.", 300, ["diyfav"], "PROS: Cheapest per kWh, recyclable, widely available. CONS: Only 50% usable capacity, sulfates if left uncharged, heavy, 500-cycle lifespan.",
+          o("lead", "Lead-acid (2nd-hand)", "Cheapest, heavy. NEVER below 30% or you kill them. ~5 yr life.", 130, ["diyfav"], "PROS: Cheapest per kWh, recyclable, widely available. CONS: Only 50% usable capacity, sulfates if left uncharged, heavy, 500-cycle lifespan.",
             {budget:{min:100,max:5000,step:100,def:1000},choices:[
-              {key:"qual",label:"Quality",opts:[{id:"used",l:"Used $100/kWh",e:"Unknown history, may be sulfated"},{id:"new",l:"New $150/kWh",e:"Fresh, full capacity, warranty"}]},
+              {key:"qual",label:"Quality",opts:[{id:"used",l:"Used $80/kWh",e:"Unknown history, may be sulfated"},{id:"new",l:"New $130/kWh",e:"Fresh, full capacity, warranty"}]},
+              {key:"voltage",label:"System voltage",opts:[{id:"12v",l:"12V",e:"Standard, high current, thick cables, more controllers"},{id:"24v",l:"24V",e:"Half the current of 12V, thinner cables, fewer controllers"},{id:"48v",l:"48V",e:"Quarter the current of 12V, thinnest cables, fewest controllers"}]},
               {key:"vent",label:"Ventilation",opts:[{id:"basic",l:"Basic +$0",e:"Needs airflow outside living space"},{id:"vented",l:"Vented box +$80",e:"Safe for indoor, exhausts hydrogen gas"}]}
-            ],output:(v)=>{const p=v.qual==="new"?150:100;const vc=v.vent==="vented"?80:0;const kwh=Math.round((v._budget-vc)/p*10)/10;const ac=vc+(kwh*p);return{fields:[["Capacity",kwh+"kWh ("+(kwh*0.5)+"kWh usable)"],["Cycles","~500 at 50% DoD"],["Weight",Math.round(kwh*25)+"kg"],["Type","Flooded lead-acid"]],spent:Math.round(ac),budget:v._budget};}}),
-          o("agm", "AGM deep-cycle", "Sealed lead, tolerates deeper draw, low maintenance.", 600, [], "Better than flooded lead-acid — sealed, no maintenance, can discharge to ~60%. Still heavy for the capacity."),
-          o("lifepo4diy", "DIY LiFePO4 + BMS", "Buy 4x 3.2V cells + active-balance BMS (~13.3V 300Ah). Best value.", 1000, ["diyfav"], "Best bang for buck: 80% usable capacity, 10+ year life, half the weight of lead. Building your own pack from prismatic cells saves ~40%."),
-          o("lifepo4drop", "Drop-in LiFePO4", "Turnkey lithium, 10 yr life, usable to ~10%. Premium & easy.", 1800, [], "The easiest path — buy a ready-made battery with built-in BMS. More expensive but zero assembly and fully warranted."),
-          o("experimental", "Sodium-ion / LTO", "New chemistries — cold-tolerant, very safe, still pricey/experimental.", 1600, ["upgrade"], "Interesting for cold climates — LTO charges at -30C and lasts 20,000 cycles. Sodium-ion is cobalt-free. Both are early-stage but promising."),
+            ],output:(v)=>{const p=v.qual==="new"?130:80;const vc=v.vent==="vented"?80:0;const kwh=Math.round((v._budget-vc)/p*10)/10;const ac=vc+(kwh*p);const vLabel=v.voltage==="48v"?"48V":v.voltage==="24v"?"24V":"12V";return{fields:[["Capacity",kwh+"kWh ("+(kwh*0.5)+"kWh usable)"],["Voltage",vLabel],["Cycles","~500 at 50% DoD"],["Weight",Math.round(kwh*25)+"kg"],["Type","Flooded lead-acid"]],spent:Math.round(ac),budget:v._budget};}}),
+          o("agm", "AGM deep-cycle", "Sealed lead, tolerates deeper draw, low maintenance.", 200, [], "Better than flooded lead-acid — sealed, no maintenance, can discharge to ~60%. Still heavy for the capacity."),
+          o("lifepo4diy", "DIY LiFePO4 + BMS", "Buy 4x 3.2V cells + active-balance BMS (~13.3V 300Ah). Best value.", 200, ["diyfav"], "Best bang for buck: 80% usable capacity, 10+ year life, half the weight of lead. Building your own pack from prismatic cells saves ~40%."),
+          o("lifepo4drop", "Drop-in LiFePO4", "Turnkey lithium, 10 yr life, usable to ~10%. Premium & easy.", 350, [], "The easiest path — buy a ready-made battery with built-in BMS. More expensive but zero assembly and fully warranted."),
         ],
       },
       {
@@ -109,8 +111,8 @@ const THEMATICS = {
         options: [
           o("pwm", "PWM controller", "Cheapest, does the job, ~20% less efficient than MPPT.", 25, ["diyfav"], "Fine for very small systems. Simple, durable, and cheap — but wastes about 20% of panel potential. Only use with 12V panels and lead-acid."),
           o("mppt", "MPPT controller", "~20% more harvest, ~40% pricier, often Bluetooth.", 130, [], "The sweet spot. MPPT extracts 20% more power from the same panels, especially in cold or partial shade. The extra cost pays back in 1-2 seasons."),
-          o("mpptlith", "Lithium-compatible MPPT", "Required if you chose any lithium bank.", 250, [], "Non-negotiable with lithium: needs configurable charge profile (14.2V absorption, float at 13.8V or none). Most modern MPPT units support this."),
-          o("split", "Split into several small CCs", "Redundancy + shade tolerance + cheaper thin cables.", 180, ["upgrade"], "Instead of one big controller, use 2-3 smaller ones for different panel orientations. Shade on one string doesn't kill the whole system."),
+          o("mpptlith", "Lithium-compatible MPPT", "Required if you chose any lithium bank.", 255, [], "Non-negotiable with lithium: needs configurable charge profile (14.2V absorption, float at 13.8V or none). Most modern MPPT units support this."),
+          o("split", "Split into several small CCs", "Redundancy + shade tolerance + cheaper thin cables.", 0, ["upgrade"], "Instead of one big controller, use 2-3 smaller ones for different panel orientations. Shade on one string doesn't kill the whole system."),
         ],
       },
       {
@@ -119,8 +121,7 @@ const THEMATICS = {
         options: [
           o("base12", "12V busbar + fuses", "The backbone: thick cable to bank, fused distribution.", 35, [], "Every off-grid system needs this regardless — a fused distribution point from battery to loads. Don't skip the fuses: they prevent fires."),
           o("dcdc", "+ DC-DC converter", "Run 24/48V devices straight off DC — avoids inverter losses.", 75, ["upgrade"], "If you have 24V tools, a printer, or any non-12V DC gear, this saves the 10-15% inverter loss. Also lets you run thinner cables for those loads."),
-          o("cabinet", "+ fused cabinet + fire-ball", "Cabinet, breakers, and a self-popping fire extinguisher inside.", 130, ["safety"], "A proper enclosure with a fire extinguisher ball is cheap insurance. Battery terminals are the #1 fire ignition source in off-grid systems."),
-          o("faraday", "+ Faraday metal box", "Metal-clad box: lightning / surge / EMP protection.", 90, ["safety"], "Essential in lightning-prone areas and an EMP concern. A simple metal enclosure with filtered cable entry protects your whole system from voltage surges."),
+          o("cabinet", "+ fused cabinet + fire-ball", "Cabinet, breakers, and a self-popping fire extinguisher inside.", 50, ["safety"], "A proper enclosure with a fire extinguisher ball is cheap insurance. Battery terminals are the #1 fire ignition source in off-grid systems."),
         ],
       },
       {
@@ -129,8 +130,7 @@ const THEMATICS = {
         options: [
           o("none", "No inverter — DC only", "Run everything on 12V. Most efficient, most spartan.", 0, [], "The purist approach — run all your loads on DC. No conversion losses. But limits you to 12V appliances (LEDs, pumps, DC fridge, USB charging)."),
           o("small", "Pure-sine 1000-1500W", "Laptops, blender, small tools. Clean power, efficient.", 320, [], "Good for light AC needs. Will run laptops, TV, blender, small tools. Won't start pumps or compressors with high surge. Check startup current before buying."),
-          o("large", "Pure-sine 3000W+", "Washing machine, angle grinder, big loads.", 550, [], "If you need real AC power — power tools, washing machine, well pump. Size for the STARTUP surge, not running watts. Bigger inverters have higher idle draw."),
-          o("chgr", "Inverter-charger combo", "Inverter + shore/generator charger in one unit.", 1100, [], "One device does both jobs. Saves space and wiring. The charger side can push 50A+ into the battery from generator/shore power. Premium but clean."),
+          o("large", "Pure-sine 3000W+", "Washing machine, angle grinder, big loads.", 600, [], "If you need real AC power — power tools, washing machine, well pump. Size for the STARTUP surge, not running watts. Bigger inverters have higher idle draw."),
         ],
       },
       {
@@ -146,78 +146,17 @@ const THEMATICS = {
         id: "optimize", title: "7 · Optimize & protect", multi: true, optional: true,
         intro: "Squeeze comfort from a small system, and watch it so it lasts.",
         options: [
-          o("shunt", "Battery monitor / shunt", "Know your real state of charge — stop guessing, stop over-draining.", 80, [], "A shunt is the single most useful accessory. Without it, you're guessing state of charge by voltage — which is wildly inaccurate under load. A Victron SmartShunt or similar pays for itself."),
+          o("shunt", "Battery monitor / shunt", "Know your real state of charge — stop guessing, stop over-draining.", 110, [], "A shunt is the single most useful accessory. Without it, you're guessing state of charge by voltage — which is wildly inaccurate under load. A Victron SmartShunt or similar pays for itself."),
           o("efficient", "Efficient loads (LED, brushless)", "LED lights, brushless 12V fans, efficient compressor.", 120, ["diyfav"], "Every watt saved is one you don't have to generate. LED bulbs use 90% less than incandescent. Brushless DC fans are 70% more efficient than AC. Cheap upgrades that drastically reduce system size."),
           o("tools", "Battery power tools", "Bonus power that won't black out the house at night.", 250, [], "Cordless power tools: their batteries are a separate, portable power bank. Charge them during the day, use them at night without touching the house bank. Also convenient for remote work."),
-          o("dumpload", "Dump load / smart controller", "Divert surplus to water heating / freezer when the bank is full.", 160, ["upgrade"], "When the battery is full and the sun is still shining, dump load diverts that energy to something useful: heating water, running a freezer, or desalination. Turns wasted surplus into value."),
-        ],
-      },
-      // ---- Security options (absorbed from Security thematic) ----
-      {
-        id: "detect", title: "8 · Security — detect & deter", multi: true,
-        intro: "Half the job is deterrence — they'll skip the place with a barking dog. Stack a few layers.",
-        options: [
-          o("dog", "Watchdog", "Hears & smells trouble before you do. Best low-tech alarm there is.", 100, [], "The best security system ever: a barking dog deters most intruders, alerts you to everything (including fires and wild animals), and costs food and love. Don't underestimate this."),
-          o("motion", "Motion lights", "Cheap PIR floodlights; pair with a chime or message.", 80, [], "Sudden bright light startles intruders and tells YOU someone's approaching. Cheap, low-power, effective. Add a PIR chime inside to hear movement near the house."),
-          o("alarm", "Intrusion alarm sensors", "Pressure/magnetic sensors, bought or DIY.", 120, [], "Magnetic door switches, pressure mats, window break sensors. Wire them to a siren and a notification system. Simple, reliable, low-power."),
-          o("cameras", "Camera system", "From fake blinkers to solar AI cameras streaming to your phone.", 300, ["needsPower"], "Modern solar Reolink/Eufy cameras transmit to your phone over WiFi. AI can distinguish people from animals. Useful for remote monitoring but needs decent internet and power."),
-          o("fiber", "Optical-fiber perimeter", "Vibration on a fiber loop flags movement over a big perimeter. Cheap area cover, no visual.", 250, [], "Bury a fiber optic cable around your perimeter. Vibration from footsteps triggers an alert. Covers a large area for cheap, works in all weather. No false triggers from animals."),
-          o("drone", "Self-launching drone", "Auto-patrol with a speaker — serious deterrent.", 900, [], "A drone that auto-launches, patrols your perimeter, and can speak to intruders. Very effective deterrent but expensive. Worth it for larger homesteads."),
+          o("dumpload", "Dump load / smart controller", "Divert surplus to water heating / freezer when the bank is full.", 120, ["upgrade"], "When the battery is full and the sun is still shining, dump load diverts that energy to something useful: heating water, running a freezer, or desalination. Turns wasted surplus into value."),
         ],
       },
       {
-        id: "harden", title: "9 · Harden the home", multi: true, optional: true,
-        intro: "Make at least one part of the house genuinely secure.",
+        id: "audit", title: "8 · Security audit", multi: true, optional: true,
+        intro: "Keep an eye on your setup. A camera system for remote monitoring.",
         options: [
-          o("door", "Strong door + earthbag walls", "Earthbag is bullet- & fire-proof; add a heavy door barred inside.", 300, [], "Earthbag walls (stacked bags of subsoil) are bulletproof and fireproof. Add a heavy steel door with interior bar — you now have a safe room. The simplest hardening."),
-          o("saferoom", "Safe room + escape tunnel", "A hardened (often underground) room with a way out.", 600, [], "A dedicated safe room with reinforced walls, ventilation, and an escape tunnel. Costlier but gives you a secure fallback during the worst scenarios."),
-          o("lexan", "Lexan / barred windows", "Polycarbonate or bars on vulnerable openings.", 180, [], "Windows are the weakest point. Lexan polycarbonate is 250x stronger than glass. Steel bars are even stronger but look more 'fortress-like'. Pick based on your threat model."),
-        ],
-      },
-      {
-        id: "fire", title: "10 · Fire safety", multi: true,
-        intro: "Your DIY electrics are the #1 fire risk, and you're far from any fire brigade. Be over-stocked.",
-        options: [
-          o("fireball", "Fire-balls (auto extinguishers)", "Sit in the battery cabinet; pop & smother a fire automatically.", 90, ["safety"], "Tennis-ball sized auto-extinguishers. When a fire starts nearby, they pop and release dry chemical. Place one in your battery cabinet and one near the inverter. Cheap fire insurance."),
-          o("extinguishers", "Extinguisher stock", "Several, spread around. You're your own fire service.", 120, [], "You are the fire department. Have extinguishers in the kitchen, battery room, workshop, and near every heat source. Inspect and rotate them annually."),
-          o("tempmon", "Temp monitoring on electrics", "Alarms on charger / controller / battery hot-spots.", 110, ["safety"], "Temperature sensors on batteries, controller, and inverter that alarm via your phone if something overheats. Catches the problem before it becomes a fire."),
-          o("firepump", "Dedicated fire pump / reserve", "Pump that can drain a pond/pool onto a fire.", 300, [], "A gas-powered or DC pump dedicated to firefighting. If you have a pond, pool, or large tank, this can deliver hundreds of liters per minute onto a fire."),
-        ],
-      },
-      {
-        id: "community", title: "11 · Community link", optional: true,
-        intro: "A neighbour network beats any gadget — security, advice, seeds, extra hands.",
-        options: [
-          o("radionet", "Radio / mesh neighbour net", "Stay in touch with neighbours for help & check-ins.", 150, [], "A VHF or Meshtastic network connecting your neighbours. Check in daily, share warnings, help each other. Social resilience is the strongest security you can buy."),
-          o("none", "Go it alone", "Fully solo. Make sure your comms-for-help is rock solid.", 0, [], "Solo off-grid has romantic appeal but is genuinely dangerous without backup. If you choose this, invest heavily in reliable emergency comms (satellite messenger + PLB)."),
-        ],
-      },
-      // ---- Communications options (absorbed from Communications thematic) ----
-      {
-        id: "localcomms", title: "12 · Local / short-range comms", multi: true,
-        intro: "Talk to people on or near the property without any internet.",
-        options: [
-          o("vhf", "VHF radio", "Marine/handheld voice — essential on a boat & between buildings.", 120, [], "Marine VHF is mandatory for boat dwellers. Handheld VHF radios work across a homestead. No infrastructure needed — just two radios on the same channel."),
-          o("gmrs", "GMRS / PMR handhelds", "Cheap walkie-talkies for the homestead & work crews.", 60, [], "Cheap, simple, license-free (in most countries for PMR). Great for coordinating work across the property. ~1-5 km range depending on terrain."),
-          o("mesh", "Meshtastic LoRa mesh", "Tiny solar nodes form a text mesh over km, off-internet.", 150, [], "Solar-powered LoRa radio nodes form a text-messaging mesh. Works completely off-grid, over tens of kilometers. Each node costs ~$30. Brilliant for community networking."),
-        ],
-      },
-      {
-        id: "internet", title: "13 · Internet / long-range comms", multi: true,
-        intro: "Your link to income and the world. Starlink is the off-grid game-changer — but it runs 24/7 and eats power.",
-        options: [
-          o("starlink", "Starlink", "High-speed anywhere. The income enabler — watch the power draw.", 499, ["needsPower"], "True game-changer: 100+ Mbps anywhere with a clear sky. But draws 50-100W continuous — that's 1.2-2.4 kWh/day. Make sure your solar bank can handle the always-on load."),
-          o("lte", "4G/LTE router + antenna", "If there's any cell signal, a roof antenna can pull it in cheap.", 200, [], "If you have 1-2 bars on your phone, a $50 roof antenna + $50 router can turn that into usable internet. Much lower power draw than Starlink (~10W). Always worth checking first."),
-          o("hf", "HF / SSB radio", "Long-range voice with no infrastructure at all.", 500, [], "High Frequency radio can reach across continents. No satellites, no towers. Essential for emergency comms when everything else is down. Ham license required in most countries."),
-          o("satmsg", "Satellite messenger", "inReach/PLB — texts & SOS from literally anywhere.", 350, [], "Garmin inReach or Zoleo: two-way text messaging via satellite. Also has an SOS button that alerts emergency services with your GPS coordinates. Mandatory safety gear."),
-        ],
-      },
-      {
-        id: "commspower", title: "14 · Comms power & resilience", optional: true,
-        intro: "Comms are only as reliable as the power behind them.",
-        options: [
-          o("dedicated", "Dedicated solar + battery", "A small separate system so comms survive a main-bank failure.", 300, [], "A small 50W panel + 50Ah battery just for your router and radios. Even if your main system fails, you still have comms. This saves you when everything else is down."),
-          o("budget", "Budget it into main bank", "Account for the 24/7 router/Starlink load in your power plan.", 0, ["needsPower"], "Simply include the comms draw in your main power budget. Works as long as your main system is running. Add 50-100W to your daily load calculation."),
+          o("cameras", "Camera system", "Solar cameras with AI detection. Stream to your phone, motion alerts.", 300, ["needsPower"], "PROS: Deters intruders, remote monitoring, AI distinguishes people from animals. CONS: Needs reliable internet and power, ~10-20W continuous draw."),
         ],
       },
     ],
@@ -233,20 +172,20 @@ const THEMATICS = {
         id: "collect", title: "1 · Gather water", multi: true,
         intro: "Where the water comes from. Pick several — a source that fails with no backup is a real off-grid nightmare.",
         options: [
-          o("streambox", "Stream — buried intake box", "Tap groundwater BESIDE the stream (pre-filtered, clog-free). Recommended.", 220, ["diyfav"], "The gold standard for stream collection. You dig beside the stream, not in it — the soil acts as a natural pre-filter. No clogs, less contamination. Always do this over direct intake."),
-          o("streamdirect", "Stream — direct intake", "Pipe straight in the river. Simple but clogs & catches contamination.", 90, ["risk"], "Cheap and quick — but bad idea long-term. Clogs with debris, catches sediment and dead animals. Only use as a temporary setup while you build a buried intake box."),
-          o("ground", "Shallow ground source", "Dig the greenest spot; funnel a seep into a small well.", 180, [], "If you don't have a stream, dig where the vegetation is lushest — you'll likely hit shallow groundwater. Simple but depends on the water table. Good supplemental source."),
+          o("streambox", "Stream — buried intake box", "Tap groundwater BESIDE the stream (pre-filtered, clog-free). Recommended.", 250, ["diyfav"], "The gold standard for stream collection. You dig beside the stream, not in it — the soil acts as a natural pre-filter. No clogs, less contamination. Always do this over direct intake."),
+          o("streamdirect", "Stream — direct intake", "Pipe straight in the river. Simple but clogs & catches contamination.", 80, ["risk"], "Cheap and quick — but bad idea long-term. Clogs with debris, catches sediment and dead animals. Only use as a temporary setup while you build a buried intake box."),
+          o("ground", "Shallow ground source", "Dig the greenest spot; funnel a seep into a small well.", 200, [], "If you don't have a stream, dig where the vegetation is lushest — you'll likely hit shallow groundwater. Simple but depends on the water table. Good supplemental source."),
           o("borewell", "Borewell + submersible pump", "Narrow DIY-drilled well into a deep aquifer. Lots of water.", 3500, [], "Expensive but gives you a reliable, deep aquifer that doesn't fluctuate with seasons. Needs a pump (powered) and some drilling know-how. The gold standard for land-based setups.",
             {budget:{min:1000,max:5000,step:200,def:3500},choices:[
               {key:"depth",label:"Depth",opts:[{id:"shallow",l:"100ft +$0",e:"Good shallow aquifer, lower lift cost"},{id:"deep",l:"250ft +$500",e:"Deeper aquifer, more stable yield"},{id:"verydeep",l:"500ft +$1500",e:"Very deep, highest yield, expensive drilling"}]}
             ],output:(v)=>{const dc=v.depth==="deep"?500:v.depth==="verydeep"?1500:0;const depth=v.depth==="shallow"?100:v.depth==="deep"?250:500;const gpm=depth>=250?12:8;const dailyGal=gpm*60*4;return{fields:[["Depth",depth+"ft"],["Flow rate",gpm+" GPM"],["Daily yield",Math.round(dailyGal).toLocaleString()+" gal/day"],["Pump included","Submersible 12V"]],spent:Math.round(3500+dc),budget:v._budget};}}),
-          o("rain", "Rainwater + first-flush", "Roof, gutters, first-flush diverter. Always worth adding for backup.", 250, [], "Free water that falls on your roof. A first-flush diverter sends the first dirty mm down the drain. Always worth adding as a SECONDARY source — never rely solely on rain.",
+          o("rain", "Rainwater + first-flush", "Roof, gutters, first-flush diverter. Always worth adding for backup.", 300, [], "Free water that falls on your roof. A first-flush diverter sends the first dirty mm down the drain. Always worth adding as a SECONDARY source — never rely solely on rain.",
             {budget:{min:100,max:1000,step:50,def:350},choices:[
               {key:"roof",label:"Roof area",opts:[{id:"small",l:"500 sqft +$0",e:"Small cabin/van roof, ~1,000 gal/yr in moderate rain"},{id:"med",l:"1,000 sqft +$100",e:"Average house roof, ~2,000 gal/yr"},{id:"large",l:"2,000 sqft +$250",e:"Large barn/homestead roof, ~4,000 gal/yr"}]}
             ],output:(v)=>{const rc=v.roof==="med"?100:v.roof==="large"?250:0;const sqft=v.roof==="med"?1000:v.roof==="large"?2000:500;const galYr=Math.round(sqft*0.6*40);const galMo=Math.round(galYr/12);return{fields:[["Roof area",sqft+" sqft"],["Annual harvest",galYr.toLocaleString()+" gal"],["Monthly avg",galMo.toLocaleString()+" gal"],["Includes first-flush","Yes"]],spent:Math.round(250+rc),budget:v._budget};}}),
           o("ro", "Desalination — RO unit", "Near the sea, no fresh water. ~$300-10k, needs prefilter, fragile membrane.", 3000, [], "Only if you're coastal with no fresh water. Reverse osmosis removes salt, but it's energy-intensive, the membranes are fragile (no chlorine!), and you need strong prefiltration. Expensive but necessary. For mariners."),
-          o("solarstill", "Desalination — solar still", "Low-tech evaporation, cheap, slow. Mad-Max distilling option.", 180, ["diyfav"], "The low-tech path to desalination. Uses sunlight to evaporate and condense fresh water. Produces maybe 1-3L/day per square meter. Good for emergency backup or supplement, not primary."),
-          o("air", "From the air (fog / AWG)", "Fog nets or atmospheric generator. Last resort, energy-hungry.", 700, [], "Atmospheric water generators are energy hogs (300-600 Wh/L). Fog nets work passively but only in specific microclimates. A last resort when no other source exists."),
+          o("solarstill", "Desalination — solar still", "Low-tech evaporation, cheap, slow. Mad-Max distilling option.", 120, ["diyfav"], "The low-tech path to desalination. Uses sunlight to evaporate and condense fresh water. Produces maybe 1-3L/day per square meter. Good for emergency backup or supplement, not primary."),
+          o("air", "From the air (fog / AWG)", "Fog nets or atmospheric generator. Last resort, energy-hungry.", 500, [], "Atmospheric water generators are energy hogs (300-600 Wh/L). Fog nets work passively but only in specific microclimates. A last resort when no other source exists."),
         ],
       },
       {
@@ -254,24 +193,24 @@ const THEMATICS = {
         intro: "Lift it from source to tank. Gravity first; a ram pump runs on river flow alone (some have lasted a century).",
         options: [
           o("gravity", "Gravity feed", "Source above the house = no moving parts, nothing to break.", 100, ["diyfav"], "The absolute best if you can manage it. Source higher than the tap = free water forever with zero energy and zero moving parts. No brainer. Design your layout around this if possible."),
-          o("ram", "Ram pump", "Powered only by the river's own flow. Cheap, DIY, near-eternal.", 200, ["diyfav"], "Brilliant engineering: uses the momentum of falling water to pump some of it uphill. No electricity, no fuel, almost no maintenance. Some ram pumps have been running for 100+ years."),
+          o("ram", "Ram pump", "Powered only by the river's own flow. Cheap, DIY, near-eternal.", 250, ["diyfav"], "Brilliant engineering: uses the momentum of falling water to pump some of it uphill. No electricity, no fuel, almost no maintenance. Some ram pumps have been running for 100+ years."),
           o("manual", "Manual pump", "Robust, reliable, a bit of a workout. Good emergency backup.", 200, [], "Hand pump — reliable, never runs out of battery. Use as backup when other systems fail. Deep well hand pumps can lift from 100+ feet."),
-          o("pump12", "12V electric pump", "Runs off solar/battery. Many are self-priming; bleed air if not.", 160, [], "The modern default. A good 12V diaphragm pump (e.g., Seaflo) draws ~5A and can lift from 10-15 feet. Needs priming if the suction line runs dry."),
-          o("pumpac", "AC pump (needs inverter)", "Higher capacity, but depends on your inverter or genset.", 240, ["needsInv"], "For high-volume needs (irrigation, filling large tanks). Requires an inverter running, so plan for that power draw. Better for occasional big lifts than continuous use."),
+          o("pump12", "12V electric pump", "Runs off solar/battery. Many are self-priming; bleed air if not.", 150, [], "The modern default. A good 12V diaphragm pump (e.g., Seaflo) draws ~5A and can lift from 10-15 feet. Needs priming if the suction line runs dry."),
+          o("pumpac", "AC pump (needs inverter)", "Higher capacity, but depends on your inverter or genset.", 300, ["needsInv"], "For high-volume needs (irrigation, filling large tanks). Requires an inverter running, so plan for that power draw. Better for occasional big lifts than continuous use."),
         ],
       },
       {
         id: "store", title: "3 · Store water", optional: true,
         intro: "The chapter's model: a big long-term tank, a mid prefiltered tank, a small daily double-filtered tank. Keep tanks out of the sun & sealed so nothing lives in them.",
         options: [
-          o("repurposed", "Repurposed plastic drums", "Old fuel/food containers (like on the island). Cheap, keep shaded.", 80, ["diyfav"], "Cheapest storage. Find IBC totes or blue 55-gallon drums. Must be food-grade. Keep them UV-protected or they'll grow algae. Great starter tanks."),
-          o("poly", "Poly water tank", "Purpose-built, long-lasting. Bigger ones get pricey.", 280, [], "The standard for permanent water storage. UV-stabilized, food-grade polyethylene. Available in any size up to 10,000L. Lasts decades if kept off the ground."),
-          o("flexible", "Flexible bladder", "Collapsible — perfect for boats/vans and tight spaces.", 340, [], "Great when space is tight: folds flat when empty. But more puncture-prone than rigid tanks. Use where you can't fit a hard tank."),
-          o("ferro", "Ferrocement cistern", "Cement over mesh — custom shapes, big volume, low cost/L.", 600, ["diyfav"], "Build your own tank shape with chicken wire and cement. Very low cost per liter. Labour-intensive but can produce huge cisterns (10,000L+) for pennies."),
-          o("brick", "Brick & cement cistern", "Big static storage; more build labour.", 900, [], "More refined than ferrocement — brick walls with cement render. Looks better, lasts forever. More material cost but still less than equivalent poly tank."),
-          o("plywoodfg", "Plywood + fiberglass", "DIY watertight box with epoxy + food-grade paint.", 320, ["diyfav"], "A clever DIY box: plywood frame, coated with fiberglass resin and food-grade epoxy. Can fit into oddly-shaped spaces. Needs good ventilation during construction."),
-          o("metal", "Stainless / metal tank", "Clean and durable; stainless is best (and priciest).", 1200, [], "Stainless steel doesn't leach, doesn't grow algae, lasts forever. But expensive and heavy. Galvanized steel is cheaper but can rust eventually."),
-          o("level", "+ Tank level indicator", "Float gauge or ultrasonic-to-phone so you know your autonomy.", 90, ["upgrade"], "Knowing your water level means you can plan. A simple sight tube costs nothing. Ultrasonic sensors paired with your phone give remote monitoring. Never run dry unexpectedly."),
+          o("repurposed", "Repurposed plastic drums", "Old fuel/food containers (like on the island). Cheap, keep shaded.", 50, ["diyfav"], "Cheapest storage. Find IBC totes or blue 55-gallon drums. Must be food-grade. Keep them UV-protected or they'll grow algae. Great starter tanks."),
+          o("poly", "Poly water tank", "Purpose-built, long-lasting. Bigger ones get pricey.", 300, [], "The standard for permanent water storage. UV-stabilized, food-grade polyethylene. Available in any size up to 10,000L. Lasts decades if kept off the ground."),
+          o("flexible", "Flexible bladder", "Collapsible — perfect for boats/vans and tight spaces.", 350, [], "Great when space is tight: folds flat when empty. But more puncture-prone than rigid tanks. Use where you can't fit a hard tank."),
+          o("ferro", "Ferrocement cistern", "Cement over mesh — custom shapes, big volume, low cost/L.", 500, ["diyfav"], "Build your own tank shape with chicken wire and cement. Very low cost per liter. Labour-intensive but can produce huge cisterns (10,000L+) for pennies."),
+          o("brick", "Brick & cement cistern", "Big static storage; more build labour.", 1500, [], "More refined than ferrocement — brick walls with cement render. Looks better, lasts forever. More material cost but still less than equivalent poly tank."),
+          o("plywoodfg", "Plywood + fiberglass", "DIY watertight box with epoxy + food-grade paint.", 350, ["diyfav"], "A clever DIY box: plywood frame, coated with fiberglass resin and food-grade epoxy. Can fit into oddly-shaped spaces. Needs good ventilation during construction."),
+          o("metal", "Stainless / metal tank", "Clean and durable; stainless is best (and priciest).", 1000, [], "Stainless steel doesn't leach, doesn't grow algae, lasts forever. But expensive and heavy. Galvanized steel is cheaper but can rust eventually."),
+          o("level", "+ Tank level indicator", "Float gauge or ultrasonic-to-phone so you know your autonomy.", 100, ["upgrade"], "Knowing your water level means you can plan. A simple sight tube costs nothing. Ultrasonic sensors paired with your phone give remote monitoring. Never run dry unexpectedly."),
         ],
       },
       {
@@ -279,83 +218,32 @@ const THEMATICS = {
         intro: "No single method is 100% safe — STACK them. Particles, microbes, viruses, chemicals, metals each need a different trick.",
         options: [
           o("prefilter", "Prefilter (gravel/sand/charcoal)", "DIY first stage. Comes out pretty clean — but not guaranteed.", 60, ["diyfav"], "The first line of defense: removes sediment, most protozoa, and some bacteria. A stacked bucket filter (fine sand, charcoal, gravel) is cheap and effective. Not enough alone."),
-          o("berkey", "Berkey clay + carbon", "Gravity ceramic + activated carbon. Solid everyday filter.", 280, [], "Gravity-fed ceramic filter with carbon core. Removes bacteria, protozoa, chemicals, heavy metals. Slow (3-4 L/h) but doesn't need power. A reliable workhorse."),
-          o("silver", "Colloidal-silver clay", "Clay pot + silver kills bacteria & stops regrowth. Low upkeep.", 120, ["diyfav"], "Ancient technology: porous clay pot (sometimes with colloidal silver) filters bacteria and keeps the filter itself from growing mold. Cheap, effective, long-lasting. Pair with carbon for chemicals."),
-          o("multistage", "Multistage + ultrafilter", "Pool-style stages finished with an ultrafiltration cartridge.", 360, [], "A series of stages: sediment, carbon, ultrafiltration (0.02 micron). Removes virtually everything including viruses. Needs moderate pressure to run. Higher flow than gravity."),
-          o("straw", "Personal straw + pressure pump", "Cheap survival straws + a pump = very safe water (~700L/filter).", 90, ["diyfav"], "Survival straws are tiny, cheap, and effective against bacteria + protozoa. Add a hand pump and you have a portable filtration station. Filters ~700L before replacement."),
-          o("uv", "UV-C purifier", "Kills bacteria & viruses (doesn't filter solids). Pair with a filter.", 190, [], "UV light destroys microbe DNA. Kills bacteria and viruses instantly but DOES NOT filter solids or chemicals. Always use AFTER a particulate filter. Needs electricity."),
-          o("sodis", "SODIS (sun in bottles)", "Free UV from the sun. Zero cost, slow, weather-dependent.", 0, ["diyfav"], "Put clear PET bottles in full sun for 6+ hours. UV + heat pasteurizes the water. Zero cost, works in emergencies. Cloud-dependent and doesn't remove chemicals."),
-          o("boil", "Boil", "Kills all biologicals. Costs fuel/energy but bulletproof.", 0, [], "Boiling kills everything — bacteria, viruses, protozoa, cysts. Fuel-hungry but absolutely reliable. The gold standard in emergencies. Doesn't remove chemicals."),
+          o("berkey", "Berkey clay + carbon", "Gravity ceramic + activated carbon. Solid everyday filter.", 330, [], "Gravity-fed ceramic filter with carbon core. Removes bacteria, protozoa, chemicals, heavy metals. Slow (3-4 L/h) but doesn't need power. A reliable workhorse."),
+          o("silver", "Colloidal-silver clay", "Clay pot + silver kills bacteria & stops regrowth. Low upkeep.", 50, ["diyfav"], "Ancient technology: porous clay pot (sometimes with colloidal silver) filters bacteria and keeps the filter itself from growing mold. Cheap, effective, long-lasting. Pair with carbon for chemicals."),
+          o("multistage", "Multistage + ultrafilter", "Pool-style stages finished with an ultrafiltration cartridge.", 300, [], "A series of stages: sediment, carbon, ultrafiltration (0.02 micron). Removes virtually everything including viruses. Needs moderate pressure to run. Higher flow than gravity."),
+          o("straw", "Personal straw + pressure pump", "Cheap survival straws + a pump = very safe water (~700L/filter).", 40, ["diyfav"], "Survival straws are tiny, cheap, and effective against bacteria + protozoa. Add a hand pump and you have a portable filtration station. Filters ~700L before replacement."),
+          o("uv", "UV-C purifier", "Kills bacteria & viruses (doesn't filter solids). Pair with a filter.", 200, [], "UV light destroys microbe DNA. Kills bacteria and viruses instantly but DOES NOT filter solids or chemicals. Always use AFTER a particulate filter. Needs electricity."),
+          o("sodis", "SODIS (sun in bottles)", "Free UV from the sun. Zero cost, slow, weather-dependent.", 5, ["diyfav"], "Put clear PET bottles in full sun for 6+ hours. UV + heat pasteurizes the water. Zero cost, works in emergencies. Cloud-dependent and doesn't remove chemicals."),
+          o("boil", "Boil", "Kills all biologicals. Costs fuel/energy but bulletproof.", 20, [], "Boiling kills everything — bacteria, viruses, protozoa, cysts. Fuel-hungry but absolutely reliable. The gold standard in emergencies. Doesn't remove chemicals."),
         ],
       },
       {
         id: "use", title: "5 · Usage, hot water & greywater", multi: true, optional: true,
         intro: "How you actually live with it. On-demand pumps are comfy but burn water fast. Reuse greywater on the garden — never with bleach.",
         options: [
-          o("ondemand", "On-demand pressure pump", "Kicks in at the tap. Comfortable — and a water-guzzler.", 180, [], "Open the tap and water flows at pressure. Very convenient but encourages high water use. An accumulator tank smooths the pressure and extends pump life."),
-          o("footpump", "Foot / manual tap pump", "Forces you to pump = forces you to save water.", 60, ["diyfav"], "Each pump gives you exactly the water you need. Conscious water use is built in. Great for dry climates where every liter counts. Simple, repairable, no power needed."),
-          o("hotsolar", "Solar / thermosiphon hot water", "Black collector + tank above it, no pump needed.", 250, ["diyfav"], "A black-painted tank or pipe in the sun plus a tank above it = thermosiphon circulation. No pump, no controller, just free hot water. The most energy-efficient way to heat water."),
-          o("hotfire", "Fire / rocket / compost heat", "Double-use your cooking or heating fire to warm water.", 150, [], "Every fire you make can also heat water. A simple coil in the stove or a heat-exchanger on the flue. Maximizes every BTU you burn. Works with rocket stoves, wood stoves, even compost."),
+          o("ondemand", "On-demand pressure pump", "Kicks in at the tap. Comfortable — and a water-guzzler.", 200, [], "Open the tap and water flows at pressure. Very convenient but encourages high water use. An accumulator tank smooths the pressure and extends pump life."),
+          o("footpump", "Foot / manual tap pump", "Forces you to pump = forces you to save water.", 80, ["diyfav"], "Each pump gives you exactly the water you need. Conscious water use is built in. Great for dry climates where every liter counts. Simple, repairable, no power needed."),
+          o("hotsolar", "Solar / thermosiphon hot water", "Black collector + tank above it, no pump needed.", 400, ["diyfav"], "A black-painted tank or pipe in the sun plus a tank above it = thermosiphon circulation. No pump, no controller, just free hot water. The most energy-efficient way to heat water."),
+          o("hotfire", "Fire / rocket / compost heat", "Double-use your cooking or heating fire to warm water.", 100, [], "Every fire you make can also heat water. A simple coil in the stove or a heat-exchanger on the flue. Maximizes every BTU you burn. Works with rocket stoves, wood stoves, even compost."),
           o("mist", "Mist shower", "Astronaut-style fog wash — tiny water use.", 80, ["upgrade"], "Uses a misting nozzle to atomize water. A 5-minute shower uses ~2 liters instead of 20+. Feels surprisingly normal. Great for water-scarce setups."),
-          o("greywater", "Greywater garden system", "Gravel + plants filter sink/shower water out to fruit trees.", 120, ["diyfav"], "Every drop of shower/sink water goes to irrigate fruit trees or ornamentals. Simple gravel + plant filter. Never use bleach or harsh chemicals if you greywater."),
+          o("greywater", "Greywater garden system", "Gravel + plants filter sink/shower water out to fruit trees.", 100, ["diyfav"], "Every drop of shower/sink water goes to irrigate fruit trees or ornamentals. Simple gravel + plant filter. Never use bleach or harsh chemicals if you greywater."),
         ],
       },
     ],
   },
 
-  food: {
-    label: "Food", color: C.food, icon: Sprout,
-    short: "Grow, raise, preserve and cook your own food.",
-    intro:
-      "This chapter is a big menu — the trick is start with ONE thing, get a win, then expand. Outside (permaculture, the long game) and inside (controlled, fast, pest-free) work best together.",
-    steps: [
-      {
-        id: "grow", title: "1 · Grow outside", multi: true,
-        intro: "Working with the land. Food forests are the lazy-genius long game; raised beds + compost get you eating fast.",
-        options: [
-          o("beds", "Raised beds + compost", "Fast wins. Compost, worm bins, biochar build the soil.", 200, ["diyfav"], "The fastest path to eating from your land. Raised beds warm up faster in spring, drain well, and are easier to weed and maintain. Start here for quick wins."),
-          o("forest", "Food forest (guilds)", "7 layers, self-supporting, forgiving. Sticks now, abundance later.", 300, ["upgrade"], "Plant like a forest: canopy trees, understory shrubs, ground cover, root crops, vines, climbers, mushrooms. Self-fertilizing, low-maintenance once established. The long game."),
-          o("earthworks", "Earthworks / swales", "Swales & ponds recharge groundwater and drought-proof the land.", 250, [], "Swales (trenches on contour) capture rainwater and let it soak into the ground. They recharge groundwater, prevent erosion, and create microclimates. Essential in dry climates."),
-          o("animals", "Chickens / small animals", "Eggs, meat, pest control, manure. Needs protection.", 350, ["needsSec"], "Chickens, rabbits, goats — they convert scraps into eggs/milk/meat and produce manure for the garden. But they need secure housing against predators and climate."),
-        ],
-      },
-      {
-        id: "controlled", title: "2 · Controlled growing", multi: true, optional: true,
-        intro: "Indoors / protected: fast, pest-free, freeze-proof. Mushrooms don't even need light.",
-        options: [
-          o("microgreens", "Microgreens", "Windowsill, ~2 weeks to harvest, almost impossible to fail.", 60, ["diyfav"], "The easiest food you'll ever grow. Seeds sprout in 7-14 days on a windowsill. Nutrient-dense, no pests, no soil issues. Perfect starter project."),
-          o("greenhouse", "Greenhouse (or buried)", "Changes everything in cold climates; a buried one even more.", 500, [], "Extends your growing season by months. A buried greenhouse (walipini) uses earth's thermal mass to stay warm. In cold climates this is transformative — fresh greens year-round."),
-          o("hydro", "Hydroponics (Kratky/NFT)", "Soil-free, fast. Kratky is passive; NFT/drip need a pump.", 300, ["needsPower"], "Grows plants 30% faster using nutrient solution instead of soil. Kratky method is completely passive (no pump). NFT needs a small pump. Great for herbs, lettuce, tomatoes."),
-          o("aquaponics", "Aquaponics", "Fish + plants loop. More moving parts, more reward.", 450, ["needsPower"], "Closed loop: fish waste feeds plants, plants clean water for fish. More complex than hydroponics (need fish care) but produces both vegetables AND protein. Once balanced, very low input."),
-          o("mushrooms", "Mushrooms", "No light needed, loves the humidity of a misting shower.", 120, ["diyfav"], "Grow protein in the dark. Oyster mushrooms on straw or coffee grounds are fast (3-4 weeks) and easy. Shiitake on logs is longer-term. No light, no soil, just humidity."),
-        ],
-      },
-      {
-        id: "preserve", title: "3 · Preserve & store", multi: true, optional: true,
-        intro: "From the kitchen chapter: keep the harvest without (much) power. A DC fridge will likely be your single biggest electrical load.",
-        options: [
-          o("cellar", "Cold room / root cellar", "Underground stable cool — everything lasts longer, zero power.", 200, ["diyfav"], "Dig a hole, insulate the ceiling, add root-vegetable storage. Zero energy, stable 5-10C year-round. The most important preservation method — cool storage without electricity."),
-          o("dcfridge", "12V DC fridge/freezer", "Efficient chest design ~100W/day — but still your top power draw.", 600, ["needsPower"], "Will likely be your single biggest power consumer. DC chest fridges (like Truckfridge or Engel) use ~30-40Ah/day. Well worth it for fresh food, but size your solar around it."),
-          o("jars", "Jars / ferment / salt / oil", "Canning, fermenting, salting, oil-preserving. Cheap & ancestral.", 120, ["diyfav"], "Water-bath canning, lacto-fermentation, salt curing, oil preserving — all work at room temperature. Zero energy. Ancient techniques that keep food for years."),
-          o("dryer", "Solar dryer / smoker", "Dry & smoke for long storage and great flavour.", 120, ["diyfav"], "A simple solar dryer (mesh trays + glass cover) dries fruits, vegetables, meat. Smoking adds flavor and preservation. Both work with just sun and airflow."),
-          o("desertfridge", "Desert (evaporative) fridge", "Clay + sand + water keeps produce cool, no electricity.", 60, ["diyfav"], "A clay pot inside a larger pot, with sand in between kept wet. Evaporation cools the inner pot by 5-10C. Zero energy. Keeps produce for days longer. Works best in dry climates."),
-        ],
-      },
-      {
-        id: "cook", title: "4 · Cook", multi: true, optional: true,
-        intro: "Three main energy paths: gas, fire, electricity. Biogas turns your waste into cooking fuel.",
-        options: [
-          o("gas", "Gas / biogas stove", "Cheap bottles, or make methane from waste in a biodigester.", 100, ["diyfav"], "Propane/butane stoves are simple, powerful, and instant. A biogas digester turns organic waste into methane for cooking. Free fuel from your own waste."),
-          o("rocket", "Rocket / wood cook stove", "Up to ~70% wood savings, clean burn, thermal mass.", 180, ["diyfav"], "A rocket stove burns small sticks with incredible efficiency (90%+ combustion). Much less smoke than an open fire. The thermal mass design (cob surround) retains heat for hours."),
-          o("solarcook", "Solar cooker", "Free, slow, sun-tracking. Great for the dry season.", 120, [], "A parabolic or box cooker reaches 100-150C using only sunlight. Free cooking but weather-dependent and slow. Best as a secondary option for sunny days."),
-          o("electric", "Electric (Norwegian pot)", "Insulated pot + element cooks for hours on little power.", 90, ["needsPower"], 'An insulated electric pot (the "Norwegian pot" or "Wonderbag" concept) uses ~100W and cooks over hours. Very efficient — slow cooking with minimal power.' ),
-        ],
-      },
-    ],
-  },
 };
-
-const THEMATIC_ORDER = ["electricity", "water", "food"];
+const THEMATIC_ORDER = ["electricity", "water"];
 
 /* ----------------------------------------------------- MYSTERY CARDS ------ */
 /* Each: trigger(h) -> bool. h.has(th,step,id), h.any, h.count, h.climate, h.setup, h.tier */
@@ -395,7 +283,7 @@ const CARDS = [
     lesson: "A California family's well pump melted when the water table dropped 40 feet below the intake — no dry-run sensor installed. Always install a dry-run protection sensor. Monitor seasonal water levels and pair hydro with solar." },
 
   { id: "invsurge", sev: "warn", title: "Grinder tripped the inverter", color: C.power,
-    trigger: (h) => h.has("electricity", "inverter", "small") && (h.has("food", "preserve", "dcfridge") || h.has("electricity", "optimize", "tools")),
+    trigger: (h) => h.has("electricity", "inverter", "small") && h.has("electricity", "optimize", "tools"),
     body: "You fire up an angle grinder; its startup surge spikes past your 1000W inverter and it cuts out mid-cut.",
     lesson: "A 900W grinder needs 2500W+ surge to start. Size inverter at 1.25-1.5x your biggest tool's SURGE rating, not running watts. Better: use brushless DC tools that draw 60% less and run off battery." },
 
@@ -434,30 +322,6 @@ const CARDS = [
     body: "Your electric pump is the only way water moves — and the day the battery dies, so does your tap.",
     lesson: "Real off-gridders couple electric pumps with gravity or manual backup. A 12V Shurflo pump ($150) is great until the bank dies. A manual hand pump ($200) on the same well is cheap insurance. Elevated secondary tank for gravity feed = zero power needed." },
 
-  { id: "fridgedrain", sev: "warn", title: "The fridge ate the bank", color: C.power,
-    trigger: (h) => h.has("food", "preserve", "dcfridge") && (h.has("electricity", "battery", "lead") || h.count("electricity", "generate") === 1),
-    body: "Your DC fridge is the single biggest load — an Arizona couple's old compressor fridge drained batteries before dawn every night, consuming 3x what they expected.",
-    lesson: "A 12V chest fridge can draw 50-80 Ah/day — typically your #1 consumer. Test actual usage with a Kill-A-Watt. Insulate the box with an extra blanket in winter. Set thermostat one degree warmer (saves 10-15%). Propane fridges use zero electricity." },
-
-  { id: "coopraid", sev: "bad", title: "The coop got raided", color: C.food,
-    trigger: (h) => h.has("food", "grow", "animals") && (h.has("electricity", "community", "none") || (!h.has("electricity", "detect", "dog") && !h.has("electricity", "harden", "door"))),
-    body: "A predator — two- or four-legged — cleans out your chickens overnight. No dog barked. No alarm. A year of eggs gone in one night.",
-    lesson: "Real homesteaders lose entire flocks to raccoons, foxes, even bears. Use hardware cloth (NOT chicken wire — that stops nothing), a motion light, and a guardian dog. One Tennessee family had a 10-foot black bear open their coop door like a latch expert." },
-
-  { id: "cropheat", sev: "warn", title: "Heat wave wilted the garden", color: C.food,
-    trigger: (h) => (h.has("food", "grow", "beds") || h.has("food", "controlled", "hydro")) && DRY.includes(h.climate) && !h.has("food", "grow", "earthworks") && !h.has("water", "use", "greywater"),
-    body: "A scorching dry week and the beds wilt — your food plan never tied into a water plan. The plants needed 5x normal water.",
-    lesson: "Food and water are one system. Swales catch rainwater and recharge groundwater. Greywater irrigates fruit trees. Mulch 4-6 inches deep cuts evaporation by 70%. A 250sqft garden needs 25+ gal/day in hot weather — plan for it." },
-
-  { id: "nohelp", sev: "bad", title: "Break-in, no way to call out", color: C.sec,
-    trigger: (h) => (h.has("electricity", "community", "none") || !h.any("electricity", "community")) && !h.any("electricity", "internet") && !h.any("electricity", "localcomms"),
-    body: "An intrusion at 2am. No radio, no neighbour net, no way to call for help. The nearest town is 45 minutes away. Isolation cuts both ways.",
-    lesson: "A real Sierra Nevada cabin was burglarized for $2,400 in batteries — thieves cut a padlock and loaded a truck. Install a cellular security cam, hardened battery box locks, and a Meshtastic LoRa node ($80) for off-grid text communication over kilometers." },
-
-  { id: "elecfire", sev: "bad", title: "Fire in the battery box", color: C.sec,
-    trigger: (h) => h.any("electricity", "generate") && !h.has("electricity", "wiring", "cabinet") && !h.has("electricity", "fire", "fireball"),
-    body: "A loose battery terminal arcs, igniting stored cardboard nearby. The shed fills with toxic smoke — fire department is 35 minutes out.",
-    lesson: "This exact fire happened in rural Colorado: a loose 12V terminal created resistance, arced, and ignited boxes stored nearby. Torque terminals to spec (6-8 Nm), use anti-corrosion washers, mount a fire extinguisher inside the battery enclosure, and NEVER store combustibles near batteries." },
 
   { id: "saltcorrosion", sev: "warn", title: "Salt ate your connections", color: C.power,
     trigger: (h) => h.climate === "maritime" && h.any("electricity", "generate"),
@@ -1826,6 +1690,7 @@ export default function App() {
 
   /* ---------- AI PROMPT PAGE ---------- */
   function renderPrompt() {
+    const [copied, setCopied] = React.useState(false);
     const cl = CLIMATES.find((c) => c.id === cfg.climate);
     const sp = SETUPS.find((s) => s.id === cfg.setup);
     const parts = [];
@@ -1842,30 +1707,94 @@ export default function App() {
       });
       if (chosen.length) parts.push(`${th.label}: ${chosen.join(", ")}`);
     });
+    const sceneVibe = {
+      tropics: "warm golden sunset light over turquoise water, humid tropical atmosphere with dramatic cumulus clouds",
+      arid: "harsh midday sun, deep angular shadows, dry dusty ground, ochre and terracotta palette",
+      temperate: "soft afternoon light, green canopy, dappled sunlight through leaves, lush surroundings",
+      mediterranean: "golden hour light, dry grass, warm terra-cotta and sage green palette, cicada-season feeling",
+      maritime: "overcast diffused grey light, choppy water, salt-weathered atmosphere, cool muted palette",
+      alpine: "crisp cold atmosphere, long blue shadows across snow, winter afternoon light",
+      boreal: "grey winter sky, soft snow light, deep blue and warm amber contrast, northern wilderness",
+    };
+    const vibe = sceneVibe[cfg.climate] || "natural golden hour light";
     const prompt =
-      `Rugged field-manual illustration of a ${sp.name.toLowerCase()} living off-grid in a ${cl.name.toLowerCase()} climate. ` +
-      `Eye-level establishing shot, natural light, weathered hand-built aesthetic. ` +
-      `Visible systems — ${parts.join("; ") || "a basic starter rig with a few solar panels"}. ` +
-      `OG Exodus style: anti-establishment DIY, salvaged materials, muted earthy palette with amber accents, ` +
-      `subtle ransom-note grit. Keep the FOUR CORNERS of the frame clean and uncluttered (room for dashboard overlays). ` +
-      `No text, no logos, no people, no clutter in corners.`;
+      `Wide establishing shot of a ${sp.name.toLowerCase()} living off-grid in a ${cl.name.toLowerCase()} climate. ` +
+      `${vibe}. ` +
+      `Visible off-grid systems: ${parts.join("; ") || "a basic starter setup with a few solar panels"}. ` +
+      `Style: OG Exodus — anti-establishment DIY, salvaged and weathered materials, muted earthy palette ` +
+      `with warm amber accents, subtle grit. Eye-level shot. ` +
+      `CRITICAL: Keep the four corners of the frame clean and uncluttered — no elements overlapping the edges. ` +
+      `No text, no logos, no people. Aspect ratio 16:9, landscape orientation.`;
     return shell(
       <div>
         <button onClick={() => setScreen("console")} style={backBtn()}><ArrowLeft size={16} /> Console</button>
+
         <h2 style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 26, marginTop: 12 }}>
-          <Sparkles size={22} color={C.amber} style={{ verticalAlign: "-3px" }} /> Make the image your own
+          <Sparkles size={22} color={C.amber} style={{ verticalAlign: "-3px" }} /> Make this scene your own
         </h2>
-        <p style={{ color: C.mute, lineHeight: 1.5, marginBottom: 12 }}>
-          This prompt is built from every choice you've made. Paste it into your image generator to replace the
-          starter visual with a render of YOUR exact setup. Corners are kept clear so the dashboards still layer on top.
+
+        <p style={{ color: C.mute, lineHeight: 1.5, marginBottom: 12, fontSize: 14 }}>
+          This prompt is built from <strong style={{ color: C.bone }}>your exact choices</strong> — climate, setup, and every piece of equipment you picked.
+          Paste it into an AI image generator to get a custom scene of your off-grid setup.
         </p>
-        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14, fontFamily: FONT_MONO, fontSize: 13, lineHeight: 1.6, color: C.bone, whiteSpace: "pre-wrap" }}>
+
+        {/* The prompt box */}
+        <div style={{
+          background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16,
+          fontFamily: FONT_MONO, fontSize: 13, lineHeight: 1.6, color: C.bone, whiteSpace: "pre-wrap",
+          marginBottom: 12, maxHeight: 260, overflowY: "auto",
+        }}>
           {prompt}
         </div>
-        <button onClick={() => { try { navigator.clipboard.writeText(prompt); } catch (e) {} }} className="ogx-hover"
-          style={{ width: "100%", background: C.amber, color: C.ink, border: "none", borderRadius: 12, padding: 13, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer", marginTop: 12 }}>
-          Copy prompt
-        </button>
+
+        {/* Copy + download buttons */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <button onClick={() => {
+            try { navigator.clipboard.writeText(prompt); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (e) {}
+          }} className="ogx-hover"
+            style={{ flex: 1, background: copied ? C.ok : C.amber, color: C.ink, border: "none", borderRadius: 10, padding: 12, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
+            {copied ? "Copied!" : "Copy prompt"}
+          </button>
+        </div>
+
+        {/* How to use section */}
+        <div style={{ background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: 14, marginBottom: 12 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.amber, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>How to use this</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <div style={{ background: C.panel, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_MONO, fontSize: 11, color: C.amber, flexShrink: 0 }}>1</div>
+              <div>
+                <div style={{ color: C.bone, fontSize: 13, fontWeight: 600 }}>Leonardo AI (free, recommended)</div>
+                <div style={{ color: C.mute, fontSize: 11, lineHeight: 1.5, marginTop: 2 }}>Go to <span style={{ color: C.amber }}>leonardo.ai/create</span> — paste prompt. Use model: <strong style={{ color: C.bone }}>Leonardo Phoenix</strong>, preset: <strong style={{ color: C.bone }}>Alchemy V2</strong>, aspect: <strong style={{ color: C.bone }}>16:9</strong>. Generate 4 variants, pick your favorite.</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <div style={{ background: C.panel, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_MONO, fontSize: 11, color: C.amber, flexShrink: 0 }}>2</div>
+              <div>
+                <div style={{ color: C.bone, fontSize: 13, fontWeight: 600 }}>Midjourney</div>
+                <div style={{ color: C.mute, fontSize: 11, lineHeight: 1.5, marginTop: 2 }}>Add <span style={{ color: C.amber }}>--ar 16:9 --style raw --s 200</span> to the end of the prompt.</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <div style={{ background: C.panel, borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_MONO, fontSize: 11, color: C.amber, flexShrink: 0 }}>3</div>
+              <div>
+                <div style={{ color: C.bone, fontSize: 13, fontWeight: 600 }}>Upload your image</div>
+                <div style={{ color: C.mute, fontSize: 11, lineHeight: 1.5, marginTop: 2 }}>Save your favorite generation as a 16:9 PNG. The OGX Simulator overlays its dashboards on top — the clean corners keep everything readable.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Need inspiration? */}
+        <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <HelpCircle size={14} color={C.mute} />
+            <span style={{ color: C.mute, fontSize: 12 }}>
+              Not using AI image tools? The built-in scene art works fine — this is just for your own version.
+            </span>
+          </div>
+        </div>
+
       </div>
     );
   }
