@@ -2,284 +2,375 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>⚡ r/OffGrid Power Picker — Build Your Setup</title>
-<meta property="og:title" content="⚡ r/OffGrid Power Picker">
-<meta property="og:description" content="Usage audit → Panel tier list → Battery wars → Generator or nah. Build your power setup and get a Reddit-formatted summary.">
+<title>⚡ r/OffGrid Power Picker v2 — Build Your Setup</title>
+<meta property="og:title" content="⚡ r/OffGrid Power Picker v2">
+<meta property="og:description" content="Climate-aware off-grid electricity builder. Usage audit, panel tier list, battery wars, controller match, generator calculus. Real prices, 10-year TCO, Reddit-ready output.">
 <meta property="og:type" content="website">
 <style>
 :root{
   --bg:#0a0a0a; --card:#141414; --line:#2a2a2a; 
   --upvote:#ff4500; --upvote-dim:#ff450044; 
   --green:#4caf50; --green-dim:#4caf5044;
-  --blue:#4a9eff; --gold:#ffb300; --purple:#b388ff;
+  --blue:#4a9eff; --gold:#ffb300; --purple:#b388ff; --pink:#ff6b9d;
   --text:#d7dadc; --muted:#818384; --dim:#454545;
   --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --radius:8px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;min-height:100vh}
-.app{max-width:680px;margin:0 auto;padding:16px 12px 120px}
-header{text-align:center;padding:24px 0 8px}
+.app{max-width:700px;margin:0 auto;padding:12px 12px 140px}
+header{text-align:center;padding:20px 0 4px}
 header h1{font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.02em}
-header h1 .r{color:var(--upvote);font-size:16px;background:#ff450022;padding:2px 8px;border-radius:4px}
-header .tagline{color:var(--muted);font-size:12px;margin-top:4px}
-.step-indicator{display:flex;gap:4px;margin:16px 0 8px}
-.step-indicator .dot{flex:1;height:4px;background:var(--line);border-radius:2px;transition:.3s}
-.step-indicator .dot.done{background:var(--green)}
-.step-indicator .dot.here{background:var(--upvote);box-shadow:0 0 8px var(--upvote-dim)}
-.stage{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 16px;margin-bottom:12px;animation:fadeIn .25s ease}
+header h1 .r{color:var(--upvote);font-size:14px;background:#ff450022;padding:2px 8px;border-radius:4px}
+header .tagline{color:var(--muted);font-size:11px;margin-top:2px}
+/* SYSTEM DIAGRAM */
+#sysdiagram{display:flex;align-items:center;gap:4px;padding:6px 10px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin:10px 0 6px;min-height:38px;flex-wrap:wrap;font-size:10px}
+#sysdiagram .node{display:flex;align-items:center;gap:3px;padding:3px 8px;background:#1a1a1a;border-radius:5px;white-space:nowrap;transition:.3s}
+#sysdiagram .node.filled{border:1px solid var(--upvote);box-shadow:0 0 6px var(--upvote-dim)}
+#sysdiagram .conn{color:var(--dim);font-size:10px}
+#sysdiagram .empty{color:var(--dim);font-style:italic;font-size:10px}
+/* STEP DOTS */
+.step-dots{display:flex;gap:3px;margin:6px 0 8px}
+.step-dots .dot{flex:1;height:3px;background:var(--line);border-radius:2px;transition:.4s}
+.step-dots .dot.done{background:var(--green)}
+.step-dots .dot.here{background:var(--upvote);box-shadow:0 0 6px var(--upvote-dim)}
+/* STAGES */
+.stage{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px;margin-bottom:10px;animation:fadeIn .25s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .stage h2{font-size:16px;margin-bottom:2px;display:flex;align-items:center;gap:8px}
-.stage .desc{color:var(--muted);font-size:12px;margin-bottom:14px}
-.stage h3{font-size:13px;margin:14px 0 6px;color:var(--gold)}
+.stage .desc{color:var(--muted);font-size:11px;margin-bottom:12px}
+.stage h3{font-size:13px;margin:12px 0 4px;color:var(--gold)}
 /* CARDS */
-.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:480px){.cards{grid-template-columns:1fr}}
-.card{
-  background:#1a1a1a;border:2px solid var(--line);border-radius:var(--radius);
-  padding:12px;cursor:pointer;transition:.15s;position:relative;text-align:center
-}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:6px}@media(max-width:480px){.cards{grid-template-columns:1fr}}
+.card{background:#1a1a1a;border:2px solid var(--line);border-radius:var(--radius);padding:10px;cursor:pointer;transition:.15s;position:relative;text-align:center}
 .card:hover{border-color:var(--blue);transform:translateY(-1px)}
-.card.pick{border-color:var(--upvote);background:#ff450008;box-shadow:0 0 12px var(--upvote-dim)}
-.card .tier{
-  position:absolute;top:6px;right:6px;font-size:10px;font-weight:900;padding:1px 6px;border-radius:3px
-}
+.card.pick{border-color:var(--upvote);background:#ff450008;box-shadow:0 0 10px var(--upvote-dim)}
+.card .emoji{font-size:26px;margin-bottom:3px}
+.card .name{font-size:12px;font-weight:700;margin-bottom:1px}
+.card .specs{font-size:10px;color:var(--muted);line-height:1.4}
+.card .price{font-size:13px;font-weight:700;color:var(--gold);margin-top:4px}
+.card .per{font-size:9px;color:var(--muted)}
+.card .tier{position:absolute;top:5px;right:5px;font-size:9px;font-weight:900;padding:1px 5px;border-radius:3px}
 .tier-s{background:#ffd70022;color:#ffd700}.tier-a{background:#4caf5022;color:#4caf50}
 .tier-b{background:#4a9eff22;color:#4a9eff}.tier-c{background:#81838422;color:#818384}
-.card .emoji{font-size:28px;margin-bottom:4px}
-.card .name{font-size:13px;font-weight:700;margin-bottom:2px}
-.card .specs{font-size:11px;color:var(--muted)}
-.card .price{font-size:14px;font-weight:700;color:var(--gold);margin-top:6px}
-.card .per{font-size:10px;color:var(--muted)}
-/* TOGGLES */
-.toggle{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#1a1a1a;border-radius:6px;margin:4px 0;cursor:pointer;transition:.1s}
+.card .affiliate{position:absolute;bottom:5px;right:6px;font-size:8px;color:var(--dim);font-style:italic}
+/* PRESET CARDS (welcome) */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}@media(max-width:500px){.preset-grid{grid-template-columns:1fr 1fr}}
+.preset-card{background:#1a1a1a;border:2px solid var(--line);border-radius:var(--radius);padding:12px 8px;cursor:pointer;text-align:center;transition:.15s}
+.preset-card:hover{border-color:var(--blue)}
+.preset-card .pe{font-size:30px}.preset-card .pn{font-size:11px;font-weight:700}.preset-card .pd{font-size:9px;color:var(--muted)}
+.preset-card .tags{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.preset-card .tags span{font-size:7px;padding:1px 4px;border-radius:3px;font-weight:700}
+.pt-good{background:#4caf5022;color:var(--green)}.pt-warn{background:#ffb30022;color:var(--gold)}.pt-info{background:#4a9eff22;color:var(--blue)}
+/* TOGGLES */  
+.toggle{display:flex;align-items:center;gap:8px;padding:7px 8px;background:#1a1a1a;border-radius:6px;margin:3px 0;cursor:pointer;transition:.1s}
 .toggle:hover{background:#222}
-.toggle input[type=checkbox]{accent-color:var(--upvote);width:18px;height:18px;cursor:pointer}
-.toggle .tn{flex:1;font-size:13px}
-.toggle .tw{font-size:11px;color:var(--muted);min-width:55px;text-align:right}
-.toggle .twh{font-size:12px;color:var(--gold);font-weight:600;min-width:60px;text-align:right}
+.toggle input[type=checkbox]{accent-color:var(--upvote);width:16px;height:16px;cursor:pointer}
+.toggle .tn{flex:1;font-size:12px}.toggle .tw{font-size:10px;color:var(--muted);min-width:50px;text-align:right}
+.toggle .twh{font-size:11px;color:var(--gold);font-weight:600;min-width:55px;text-align:right}
 /* SLIDERS */
-.slider{display:flex;align-items:center;gap:10px;margin:10px 0}
-.slider label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;min-width:100px}
-.slider input[type=range]{flex:1;accent-color:var(--upvote);height:6px}
-.slider .val{font-size:18px;font-weight:800;color:var(--upvote);min-width:45px;text-align:right}
-/* BIG NUMBERS */
-.big-stat{text-align:center;padding:16px;background:#1a1a1a;border-radius:var(--radius);margin:10px 0}
-.big-stat .num{font-size:42px;font-weight:900;color:var(--upvote);line-height:1.1}
-.big-stat .unit{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
-.big-stat .row{display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap}
-.big-stat .row .stat{text-align:center}.big-stat .row .stat .v{font-size:16px;font-weight:700;color:var(--gold)}.big-stat .row .stat .l{font-size:9px;color:var(--muted)}
-/* PROGRESS BAR */
-.pbar{height:8px;background:var(--line);border-radius:4px;margin:8px 0;overflow:hidden}
-.pbar .fill{height:100%;border-radius:4px;transition:width .6s ease}
+.slider{display:flex;align-items:center;gap:8px;margin:8px 0}
+.slider label{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.5px;min-width:90px}
+.slider input[type=range]{flex:1;accent-color:var(--upvote);height:5px}
+.slider .val{font-size:16px;font-weight:800;color:var(--upvote);min-width:40px;text-align:right}
+/* BIG STAT */
+.big-stat{text-align:center;padding:14px;background:#1a1a1a;border-radius:var(--radius);margin:8px 0}
+.big-stat .num{font-size:38px;font-weight:900;color:var(--upvote);line-height:1.1}
+.big-stat .unit{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.big-stat .row{display:flex;gap:12px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+.big-stat .row .st{text-align:center}.big-stat .row .st .v{font-size:14px;font-weight:700;color:var(--gold)}.big-stat .row .st .l{font-size:8px;color:var(--muted)}
+/* BAR */
+.pbar{height:6px;background:var(--line);border-radius:3px;margin:6px 0;overflow:hidden}
+.pbar .fill{height:100%;border-radius:3px;transition:width .6s ease}
 .fill-ok{background:var(--green)}.fill-warn{background:var(--gold)}.fill-bad{background:#ff5252}
-/* CALLOUTS */
-.callout{padding:10px 12px;border-radius:6px;margin:10px 0;font-size:12px;border-left:3px solid}
+/* CALLOUT */
+.callout{padding:8px 10px;border-radius:6px;margin:8px 0;font-size:11px;border-left:3px solid;line-height:1.5}
 .callout.tip{border-color:var(--blue);background:#4a9eff08}
 .callout.warn{border-color:var(--gold);background:#ffb30008}
 .callout.bad{border-color:#ff5252;background:#ff525208}
 .callout.good{border-color:var(--green);background:#4caf5008}
+.callout.edu{border-color:var(--purple);background:#b388ff08}
+/* KNOWLEDGE */
+.know{margin-top:8px}
+.know summary{padding:8px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--blue);background:#1a1a1a;border-radius:6px;transition:.2s;list-style:none}
+.know summary::-webkit-details-marker{display:none}
+.know summary::before{content:'📚 '}.know[open] summary{border-radius:6px 6px 0 0;color:var(--purple)}.know[open] summary::before{content:'📖 '}
+.know .kb{padding:10px;background:#1a1a1a;border-radius:0 0 6px 6px;font-size:10px;color:var(--muted);line-height:1.7}
 /* BUTTONS */
-.btn-row{display:flex;gap:8px;margin-top:16px;align-items:center;flex-wrap:wrap}
-.btn{
-  padding:10px 20px;border-radius:6px;border:none;font-family:var(--font);font-size:13px;
-  font-weight:700;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px
-}
-.btn.primary{background:var(--upvote);color:#fff}
-.btn.primary:hover{filter:brightness(1.15)}
-.btn.ghost{background:var(--line);color:var(--text)}
-.btn.ghost:hover{background:#3a3a3a}
+.btn-row{display:flex;gap:6px;margin-top:14px;align-items:center;flex-wrap:wrap}
+.btn{padding:9px 18px;border-radius:5px;border:none;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:5px}
+.btn.primary{background:var(--upvote);color:#fff}.btn.primary:hover{filter:brightness(1.15)}
+.btn.ghost{background:var(--line);color:var(--text)}.btn.ghost:hover{background:#3a3a3a}
 .btn.dim{background:transparent;border:1px solid var(--line);color:var(--muted)}
-.btn-row .hint{font-size:10px;color:var(--dim);margin-left:auto}
-kbd{background:var(--line);padding:2px 5px;border-radius:3px;font-size:10px;border:1px solid #3a3a3a}
-/* COMPARISON BOX */
-.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}@media(max-width:400px){.compare{grid-template-columns:1fr}}
-.compare .col{background:#1a1a1a;border-radius:var(--radius);padding:14px}
-.compare .col h4{font-size:12px;margin-bottom:8px;text-align:center}
-.compare .col .line{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--line)}
+.btn-row .hint{font-size:9px;color:var(--dim);margin-left:auto}
+kbd{background:var(--line);padding:1px 4px;border-radius:3px;font-size:9px;border:1px solid #3a3a3a}
+/* COMPARE */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}@media(max-width:400px){.compare{grid-template-columns:1fr}}
+.compare .col{background:#1a1a1a;border-radius:var(--radius);padding:12px}
+.compare .col h4{font-size:11px;margin-bottom:6px;text-align:center}
+.compare .col .line{display:flex;justify-content:space-between;font-size:10px;padding:2px 0;border-bottom:1px solid var(--line)}
 .compare .col .line .l{color:var(--muted)}.compare .col .line .r{font-weight:600}
-.compare .col .line.highlight{color:var(--gold);font-weight:700}
-/* SUMMARY CARD */
-.summary-card{background:var(--card);border:2px solid var(--upvote);border-radius:12px;padding:20px;text-align:center;max-width:500px;margin:0 auto;box-shadow:0 0 30px var(--upvote-dim)}
-.summary-card .title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px}
-.summary-card .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:16px 0}
-.summary-card .stats .s .n{font-size:24px;font-weight:900;color:var(--upvote)}
-.summary-card .stats .s .l{font-size:9px;color:var(--muted);text-transform:uppercase}
-.summary-card .build{text-align:left;font-size:12px;line-height:1.8;padding:12px;background:#1a1a1a;border-radius:8px;margin:10px 0}
+.compare .col .line.hl{color:var(--gold);font-weight:700;font-size:11px}
+/* SUMMARY */
+.summary-card{border:2px solid var(--upvote);border-radius:12px;padding:18px;text-align:center;box-shadow:0 0 24px var(--upvote-dim)}
+.summary-card .build{text-align:left;font-size:11px;line-height:1.8;padding:10px;background:#1a1a1a;border-radius:8px;margin:8px 0}
 .summary-card .build b{color:var(--gold)}
-/* COPY BOX */
-.copy-box{width:100%;background:#1a1a1a;border:1px solid var(--line);border-radius:6px;color:var(--text);font-family:monospace;font-size:11px;padding:10px;resize:none;margin-top:8px;height:auto}
-/* MEME LABELS */
-.meme-tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-left:4px}
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:10px;margin:8px 0}
+.tbl td,.tbl th{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}
+.tbl th{color:var(--dim);font-size:8px;text-transform:uppercase;letter-spacing:.5px}
+.tbl tr:hover{background:#1a1a1a}
+.tbl .hl td{color:var(--gold);font-weight:700}
+/* TCO TABLE */
+.tco-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;font-size:9px;text-align:center;margin:6px 0}@media(max-width:500px){.tco-grid{grid-template-columns:1fr 1fr}}
+.tco-grid .tco-cell{padding:6px 4px;background:#1a1a1a;border-radius:4px}
+.tco-grid .tco-cell.header{background:transparent;color:var(--dim);font-size:8px;text-transform:uppercase;letter-spacing:.3px}
+.tco-grid .tco-cell.best{background:#4caf5010;border:1px solid var(--green)}
+.tco-grid .tco-cell.worst{background:#ff525210;border:1px solid #ff5252}
+.tco-grid .tco-cell .big{font-size:12px;font-weight:700;color:var(--upvote)}
+.tco-grid .tco-cell .sub{color:var(--muted);font-size:7px}
+/* COPY */
+.copy-box{width:100%;background:#1a1a1a;border:1px solid var(--line);border-radius:6px;color:var(--text);font-family:monospace;font-size:10px;padding:10px;resize:none;margin-top:6px;height:auto}
+.meme-tag{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;margin-left:3px}
 .meme-based{background:#4caf5022;color:var(--green)}.meme-cringe{background:#ff525222;color:#ff5252}
 .meme-chad{background:#ffd70022;color:#ffd700}.meme-bigbrain{background:#b388ff22;color:var(--purple)}
+.select-styled{background:#1a1a1a;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-family:var(--font);font-size:11px;min-width:130px}
+select:focus{border-color:var(--blue);outline:none}
+/* SEASON TOGGLE */
+.season-toggle{display:inline-flex;background:var(--line);border-radius:5px;padding:2px;margin:6px 0}
+.season-toggle button{padding:4px 10px;border:none;font-family:var(--font);font-size:10px;font-weight:600;cursor:pointer;border-radius:4px;transition:.2s;background:transparent;color:var(--muted)}
+.season-toggle button.active{background:var(--upvote);color:#fff}
+/* AFFILIATE ROW */
+.aff-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.aff-btn{padding:5px 10px;border-radius:4px;border:1px solid var(--line);background:#1a1a1a;color:var(--muted);font-size:9px;cursor:pointer;font-family:var(--font);transition:.15s;text-decoration:none}
+.aff-btn:hover{border-color:var(--gold);color:var(--gold)}
 </style>
 </head>
 <body>
 <div class="app">
 <header>
   <h1>⚡ Power Picker <span class="r">r/OffGrid</span></h1>
-  <p class="tagline">Usage audit → Panels → Battery wars → Generator calculus. Real prices, zero fluff.</p>
+  <p class="tagline">Climate-first, real prices, 10-year math. Zero brand loyalty.</p>
 </header>
-<div class="step-indicator" id="dots"></div>
+<div id="sysdiagram"><span class="empty">Pick a scenario below or build from scratch →</span></div>
+<div class="step-dots" id="dots"></div>
 <div id="stage"></div>
 </div>
 
 <script>
-// ── DATA ──
+// ═══════════════ DATA ═══════════════
 const CLIMATES={
-  tropical:{n:'🏝️ Tropical',city:'Panama',sun:4.25,gen:'optional',desc:'Easy mode sun. Hurricane risk.'},
-  desert:{n:'🏜️ Desert',city:'Phoenix',sun:3.11,gen:'optional',desc:'Tons of sun. Heat kills panels slow.'},
-  med:{n:'🏛️ Mediterranean',city:'Athens',sun:1.86,gen:'optional',desc:'Great summer, rough winter dip.'},
-  temperate:{n:'🌲 Temperate',city:'Berlin',sun:0.48,gen:'strong',desc:'Brutal winter. 11× weaker sun Dec vs Jun.'},
-  cold:{n:'❄️ Boreal',city:'Fairbanks',sun:0.05,gen:'mandatory',desc:'Generator mandatory. 0.05 sun-hours in Dec.'},
-  mountain:{n:'⛰️ Mountain',city:'Denver',sun:2.30,gen:'rec',desc:'Good sun, cold boosts panel voltage.'},
-  maritime:{n:'🌧️ Maritime',city:'Seattle',sun:0.85,gen:'strong',desc:'Grey season Nov–Feb. Overpanel or gen.'}
+  tropical:{n:'🏝️ Tropical',city:'Panama City',sun:4.25,best:6.04,gen:'optional',diff:'easy',desc:'Easy mode sun. Hurricane risk.',fun:'Panama has no hurricanes — the Coriolis effect spares equatorial regions. One less threat for your array.'},
+  desert:{n:'🏜️ Desert',city:'Phoenix AZ',sun:3.11,best:8.36,gen:'optional',diff:'medium',desc:'Tons of sun. Heat kills panels slowly.',fun:'At 50°C a panel loses ~12% efficiency. A 6-inch air gap recovers ~5%. Mount high, let it breathe.'},
+  med:{n:'🏛️ Mediterranean',city:'Athens GR',sun:1.86,best:7.65,gen:'optional',diff:'easy',desc:'Great summer, rough winter dip.',fun:'Athens gets 2,800+ sun-hours/year. Ancient Greeks invented passive solar 2,500 years ago.'},
+  temperate:{n:'🌲 Temperate',city:'Berlin DE',sun:0.48,best:5.20,gen:'strong',diff:'hard',desc:'Brutal winter. 11× weaker Dec vs Jun.',fun:'Berlin at 52°N: 16.5h daylight in June, 7.5h in December. December sun is 11× weaker.'},
+  cold:{n:'❄️ Boreal',city:'Fairbanks AK',sun:0.05,best:5.46,gen:'mandatory',diff:'hard',desc:'Generator mandatory. 0.05 sun-hrs in Dec.',fun:'21h daylight at summer solstice — but sun is so low peak irradiance is only 5.5 kWh/m²/d.'},
+  mountain:{n:'⛰️ Mountain',city:'Denver CO',sun:2.30,best:7.15,gen:'rec',diff:'medium',desc:'Good sun, cold boosts panel voltage.',fun:'At 5,280ft, thinner atmosphere passes ~8% more solar radiation. Cold + altitude = panel heaven.'},
+  maritime:{n:'🌧️ Maritime',city:'Seattle WA',sun:0.85,best:6.18,gen:'strong',diff:'hard',desc:'Grey season Nov–Feb. Overpanel or gen.',fun:'Seattle\'s "grey season" (Nov–Feb) averages <1.5 sun-hours/day. Diffuse light dominates — overpanel, don\'t over-tilt.'}
 };
 
+// Brand-agnostic panel categories (typical specs + price ranges)
 const PANELS=[
-  {id:'used',n:'Used 250W',w:250,voc:37.2,$:60,tier:'S',desc:'Solar farm pull. $0.24/W. Test before buying.',emoji:'♻️'},
-  {id:'eco100',n:'Eco-Worthy 100W',w:100,voc:22.0,$:70,tier:'A',desc:'Budget king. 36-cell mono. Great for small arrays.',emoji:'💵'},
-  {id:'ren100',n:'Renogy 100W',w:100,voc:22.3,$:100,tier:'B',desc:'Industry default. 25yr warranty. Everywhere.',emoji:'📦'},
-  {id:'cs300',n:'CS 300W Half-Cell',w:300,voc:39.9,$:250,tier:'A',desc:'Best $/W new panel. 120 half-cell PERC.',emoji:'⚡'},
-  {id:'longi400',n:'Longi 400W PERC',w:400,voc:49.8,$:320,tier:'A',desc:'144-cell mono PERC. 22%+ efficient. Big boy.',emoji:'🏆'},
-  {id:'cs450',n:'CS 450W Bifacial',w:450,voc:52.1,$:360,tier:'S',desc:'Glass-on-glass bifacial. Ground-mount king.',emoji:'👑'}
+  {id:'used250',n:'Used 250W (Salvage)',w:250,voc:37.2,$:60,$min:40,$max:80,tier:'S',desc:'Solar farm decommission. $0.16-0.32/W. Test Voc before buying.',aff:'santan',emoji:'♻️'},
+  {id:'budget100',n:'Budget 100W Mono',w:100,voc:22.0,$:70,$min:55,$max:90,tier:'A',desc:'36-cell monocrystalline. Best for small arrays. <$1/W.',aff:'amazon',emoji:'💵'},
+  {id:'mid300',n:'Mid-Range 300W PERC',w:300,voc:39.9,$:250,$min:200,$max:300,tier:'A',desc:'120 half-cell PERC. Sweet spot $/W. Most popular size.',aff:'renvu',emoji:'⚡'},
+  {id:'premium400',n:'Premium 400W PERC',w:400,voc:49.8,$:320,$min:280,$max:380,tier:'A',desc:'144-cell mono PERC. 22%+ efficient. Two-person lift.',aff:'renvu',emoji:'🏆'},
+  {id:'bifacial450',n:'Bifacial 450W',w:450,voc:52.1,$:360,$min:320,$max:420,tier:'S',desc:'Glass-on-glass. Ground-mount king. +15% from rear side.',aff:'renvu',emoji:'👑'},
+  {id:'flex100',n:'Flexible 100W',w:100,voc:21.0,$:150,$min:120,$max:200,tier:'C',desc:'Lightweight, bendable. For vans/RVs. Shorter lifespan.',aff:'amazon',emoji:'🚐'}
 ];
 
 const BATTERIES={
-  lifepo4_diy:{n:'🛠️ DIY LiFePO4',tag:'chad',desc:'Prismatic cells + JK BMS. Best $/kWh. Active balancing. Serviceable. You build it.',u:.95,cyc:4000,v:3.2,cells:[{ah:105,$:57.5,cn:'EVE LF105'},{ah:280,$:91,cn:'EVE LF280K V3'},{ah:304,$:103.5,cn:'EVE LF304'},{ah:314,$:95,cn:'EVE MB31'}],bms:[{n:'JK 200A 2A active',$:150,a:200},{n:'JK 300A 2A active',$:160,a:300}],diy:true},
-  lifepo4_dropin:{n:'📦 Drop-In LiFePO4',tag:'based',desc:'Pre-built, warrantied. Plug and play. ~100A charge ceiling (internal BMS).',u:1.0,cyc:3500,v:12,opts:[{ah:100,$:280,on:'LiTime 100Ah'},{ah:200,$:550,on:'LiTime 200Ah'},{ah:314,$:699,on:'Epoch 314Ah'}],diy:false},
-  agm:{n:'🔋 AGM Lead-Acid',tag:'cringe',desc:'Sealed, no maintenance. Only 50% usable. Heavy (64 lbs). 3-5yr life.',u:.50,cyc:600,v:12,opts:[{ah:100,$:180,on:'Renogy AGM 100Ah'}],diy:false},
-  flooded:{n:'🧪 Flooded Lead-Acid',tag:'cringe',desc:'Cheapest upfront. Needs watering + venting. Hydrogen gas. 400 cycles.',u:.50,cyc:400,v:6,opts:[{ah:225,$:200,on:'Trojan T-105 6V'}],diy:false}
+  lifepo4_diy:{n:'🛠️ DIY LiFePO4',tag:'chad',desc:'Prismatic cells + BMS. Best $/kWh. Full control, serviceable. Active balancing.',u:.95,cyc:4000,v:3.2,cells:[{ah:105,$:57.5,cn:'105Ah (EVE LF105)'},{ah:280,$:91,cn:'280Ah (EVE LF280K)'},{ah:304,$:103.5,cn:'304Ah (EVE LF304)'},{ah:314,$:95,cn:'314Ah (EVE MB31)'}],bms:[{n:'JK 200A 2A Active Balance',$:150,a:200},{n:'JK 300A 2A Active Balance',$:160,a:300}],diy:true,aff:'docan'},
+  lifepo4_dropin:{n:'📦 Drop-In LiFePO4',tag:'based',desc:'Pre-built, warrantied. Plug-and-play. ~100A charge ceiling.',u:1.0,cyc:3500,v:12,opts:[{ah:100,$:280,on:'100Ah Drop-In'},{ah:200,$:550,on:'200Ah Drop-In'},{ah:314,$:699,on:'314Ah Drop-In'}],diy:false,aff:'amazon'},
+  agm:{n:'🔋 AGM Lead-Acid',tag:'cringe',desc:'Sealed, no maintenance. 50% usable. Heavy (64 lbs). 3-5yr life.',u:.50,cyc:600,v:12,opts:[{ah:100,$:180,on:'100Ah AGM'}],diy:false,aff:'amazon'},
+  flooded:{n:'🧪 Flooded Lead-Acid',tag:'cringe',desc:'Cheapest upfront. Needs watering + venting. H₂ gas. 400 cycles.',u:.50,cyc:400,v:6,opts:[{ah:225,$:200,on:'Trojan T-105 6V 225Ah'}],diy:false,aff:'amazon'}
 };
 
-const LOADS=[
-  {n:'DC Fridge/Freezer',w:60,h:12,on:true,emoji:'🧊'},
-  {n:'LED Lights ×8',w:40,h:5,on:true,emoji:'💡'},
-  {n:'Laptop + Phone',w:65,h:4,on:true,emoji:'💻'},
-  {n:'Water Pump',w:750,h:.5,on:true,emoji:'💧'},
-  {n:'Starlink Internet',w:60,h:16,on:true,emoji:'🛰️'},
-  {n:'Ceiling Fan',w:35,h:8,on:false,emoji:'🌀'},
-  {n:'Mini-Split AC',w:1200,h:6,on:false,emoji:'❄️'},
-  {n:'Microwave',w:1000,h:.2,on:false,emoji:'📡'},
-  {n:'Electric Kettle',w:1500,h:.15,on:false,emoji:'🫖'},
-  {n:'TV / Monitor',w:100,h:3,on:false,emoji:'📺'}
+const CONTROLLERS=[
+  {brand:'MPPT Premium',model:'100/30 (440W@12V)',voc:100,a:30,$:255,t:'premium'},
+  {brand:'MPPT Premium',model:'100/50 (700W@12V)',voc:100,a:50,$:320,t:'premium'},
+  {brand:'MPPT Premium',model:'150/35 (500W@12V)',voc:150,a:35,$:350,t:'premium'},
+  {brand:'MPPT Premium',model:'150/60 (860W@12V)',voc:150,a:60,$:480,t:'premium'},
+  {brand:'MPPT Premium',model:'150/85 (1200W@12V)',voc:150,a:85,$:640,t:'premium'},
+  {brand:'MPPT Premium',model:'250/60 (860W@12V)',voc:250,a:60,$:680,t:'premium'},
+  {brand:'MPPT Budget',model:'40A MPPT 150V',voc:150,a:40,$:160,t:'budget'},
+  {brand:'PWM Budget',model:'30A PWM 55V',voc:55,a:30,$:35,t:'pwm'}
 ];
 
-// ── STATE ──
-const S={step:0,climate:'temperate',panel:3,count:6,batt:'lifepo4_diy',cell:1,bms:0,sysV:24,auto:3,hasGen:true,genA:100,genH:2};
+const LOADS=[
+  {n:'DC Fridge/Freezer',w:60,h:12,on:true,emoji:'🧊',tip:'DC fridge = 2-3 fewer panels than AC fridge'},
+  {n:'LED Lights ×8',w:40,h:5,on:true,emoji:'💡',tip:'LEDs use 85% less than incandescent'},
+  {n:'Laptop + Phone',w:65,h:4,on:true,emoji:'💻',tip:'Charge during peak sun to skip battery cycling'},
+  {n:'Water Pump ¾HP',w:750,h:.5,on:true,emoji:'💧',tip:'High surge — inverter must handle 3× running watts'},
+  {n:'Starlink Internet',w:60,h:16,on:true,emoji:'🛰️',tip:'960 Wh/day. Consider turning off at night'},
+  {n:'Ceiling Fan',w:35,h:8,on:false,emoji:'🌀',tip:'DC ceiling fans use 80% less than AC'},
+  {n:'Mini-Split AC 12kBTU',w:1200,h:6,on:false,emoji:'❄️',tip:'Inverter mini-splits ramp slowly — no surge spike'},
+  {n:'Microwave',w:1000,h:.2,on:false,emoji:'📡',tip:'200 Wh per use. Short runtime, high peak'},
+  {n:'Electric Kettle',w:1500,h:.15,on:false,emoji:'🫖',tip:'225 Wh per boil. Use gas kettle in winter'},
+  {n:'TV / Monitor',w:100,h:3,on:false,emoji:'📺',tip:'12V TVs exist — skip the inverter for this load'}
+];
 
+const PRESETS=[
+  {id:'van',n:'Van / RV Life',e:'🚐',d:'Mobile. DC fridge, laptop, lights, fan.',c:'desert',p:2,gen:false,bd:2,bt:'lifepo4_dropin'},
+  {id:'cabin',n:'Weekend Cabin',e:'🏡',d:'Small cabin. Fridge, lights, pump, Starlink.',c:'mountain',p:4,gen:false,bd:3,bt:'lifepo4_diy'},
+  {id:'homestead',n:'Full-Time Off-Grid',e:'🏠',d:'Year-round. Everything. Generator backup.',c:'temperate',p:12,gen:true,bd:5,bt:'lifepo4_diy'},
+  {id:'trop',n:'Tropical Cabin',e:'🌴',d:'Panama-style. Fans, Starlink, fridge, pump.',c:'tropical',p:6,gen:false,bd:3,bt:'lifepo4_diy'},
+  {id:'bunker',n:'Survival Bunker',e:'🏚️',d:'Minimalist. Lights, radio, pump. Gen mandatory.',c:'cold',p:16,gen:true,bd:7,bt:'lifepo4_diy'},
+  {id:'custom',n:'Custom Build',e:'🔧',d:'Configure everything from scratch.',c:null,p:null,gen:null,bd:null,bt:null}
+];
+
+// ═══════════════ STATE ═══════════════
+const S={step:-1,climate:'temperate',panel:2,count:6,batt:'lifepo4_diy',cell:1,bms:0,sysV:24,auto:3,hasGen:true,genA:100,genH:2,season:'winter',ctrl:2};
 function L(){return LOADS.filter(l=>l.on).reduce((s,l)=>s+l.w*l.h,0)}
 function PK(){return LOADS.filter(l=>l.on).reduce((s,l)=>s+l.w,0)}
+function sun(){const c=CLIMATES[S.climate];return S.season==='summer'?c.best:c.sun;}
+function sunLabel(){return S.season==='summer'?'best month':'worst month';}
 
-// ── RENDER ──
+// ═══════════════ RENDER ═══════════════
 function R(){
-  const dots=[1,2,3,4,5];document.getElementById('dots').innerHTML=dots.map((_,i)=>{
+  document.getElementById('dots').innerHTML=[1,2,3,4,5,6,7,8].map((_,i)=>{
     let c='';if(i<S.step)c='done';if(i===S.step)c='here';return `<div class="dot ${c}"></div>`;
   }).join('');
+  document.getElementById('sysdiagram').innerHTML=diagram();
   document.getElementById('stage').innerHTML=build();
   window.scrollTo({top:0,behavior:'smooth'});
 }
-
-function tierClass(t){return t==='S'?'s':t==='A'?'a':t==='B'?'b':'c';}
-function meme(t){return t==='chad'?'meme-chad':t==='based'?'meme-based':t==='cringe'?'meme-cringe':'meme-bigbrain';}
-function tag(type,txt){return `<span class="meme-tag meme-${type}">${txt}</span>`;}
-
+function diagram(){
+  const parts=[],sh=sun(),c=CLIMATES[S.climate],p=PANELS[S.panel];
+  if(S.step>=0||S.preset)parts.push({i:'🎯',l:S.preset?PRESETS.find(x=>x.id===S.preset).n:'Custom'});
+  if(S.climate&&S.step>=0)parts.push({i:'🌍',l:c.n.split(' ')[1]});
+  if(L()>0&&S.step>=1)parts.push({i:'📋',l:(L()/1000).toFixed(1)+'kWh'});
+  if(S.step>=2)parts.push({i:'☀️',l:S.count+'×'+p.w+'W'});
+  if(S.step>=3){const b=BATTERIES[S.batt];let cell=b.cells?b.cells[S.cell]:b.opts[0];const ba=L()*S.auto/(S.sysV*b.u),sn=Math.ceil(ba/(cell.ah||100)),si=Math.ceil(S.sysV/b.v);parts.push({i:'🔋',l:si+'S'+sn+'P'});}
+  if(S.step>=4&&S.hasGen)parts.push({i:'⚡',l:'Gen'});if(S.step>=5)parts.push({i:'🎛️',l:'MPPT'});
+  if(!parts.length)return '<span class="empty">Pick a scenario below or build from scratch →</span>';
+  return parts.map((p,i)=>`${i>0?'<span class="conn">→</span>':''}<span class="node filled">${p.i} ${p.l}</span>`).join('');
+}
 function build(){
   switch(S.step){
-    case 0: return buildClimate();
-    case 1: return buildLoads();
-    case 2: return buildPanels();
-    case 3: return buildBattery();
-    case 4: return buildGenerator();
-    case 5: return buildSummary();
-    default: return buildClimate();
+    case -1: return buildWelcome(); case 0: return buildClimate(); case 1: return buildLoads();
+    case 2: return buildPanels(); case 3: return buildBattery(); case 4: return buildGenerator();
+    case 5: return buildControllers(); case 6: return buildTCO(); case 7: return buildSummary();
+    default: return buildWelcome();
   }
 }
 
-// ── STEP 0: CLIMATE ──
-function buildClimate(){
+// ═══════════════ HELPERS ═══════════════
+function tierCls(t){return t==='S'?'s':t==='A'?'a':t==='B'?'b':'c';}
+function tag(type){return `<span class="meme-tag meme-${type}">${type}</span>`;}
+function ftag(t,l){return `<span class="pt-${t}">${l}</span>`;}
+function K(title,body){return `<details class="know"><summary>${title}</summary><div class="kb">${body}</div></details>`;}
+function affBtn(type,label){const urls={santan:'https://santansolar.com',amazon:'https://amazon.com',renvu:'https://renvu.com',docan:'https://docanpower.com',currentconnected:'https://currentconnected.com'};const url=urls[type]||'#';return `<a class="aff-btn" href="${url}" target="_blank" rel="nofollow">🛒 ${label||type}</a>`;}
+
+// ═══════════════ STEP -1: WELCOME ═══════════════
+function buildWelcome(){
   return `<div class="stage">
-    <h2>🌍 STEP 1: Where Are You?</h2>
-    <div class="desc">Your climate sets the difficulty. We design for the <b>worst sun month</b> — not the average. Summer-only setups fail in December.</div>
-    <div class="cards">${Object.entries(CLIMATES).map(([k,c])=>`
-      <div class="card ${S.climate===k?'pick':''}" onclick="S.climate='${k}';R()">
-        <div class="emoji" style="font-size:32px">${c.n.split(' ')[0]}</div>
-        <div class="name">${c.n}</div>
-        <div class="specs">${c.city} · ${c.sun} sun-hrs (worst)</div>
-        <div class="specs" style="margin-top:2px">${c.desc}</div>
-        <div style="margin-top:4px;font-size:10px;color:var(--gold)">Gen: <b>${c.gen}</b></div>
+    <h2>⚡ Build Your Off-Grid Power System</h2>
+    <div class="desc">Climate-aware. Real prices. 10-year total cost math. Brand-agnostic — you pick the category, we do the math. Designed for r/OffGrid.</div>
+    <h3>Start with a scenario — or build from scratch:</h3>
+    <div class="preset-grid">${PRESETS.map(pr=>`
+      <div class="preset-card" onclick="applyPreset('${pr.id}')">
+        <div class="pe">${pr.e}</div>
+        <div class="pn">${pr.n}</div>
+        <div class="pd">${pr.d}</div>
+        ${pr.id!=='custom'?`<div class="tags">${ftag('good',CLIMATES[pr.c].n.split(' ')[1])}${pr.p?ftag('warn',pr.p+' panels'):''}${pr.gen?ftag('info','⚡gen'):''}${pr.bd?ftag('good',pr.bd+'d auto'):''}</div>`:''}
       </div>
     `).join('')}</div>
-    ${S.climate?`<div class="callout tip">💡 <b>Design month:</b> ${CLIMATES[S.climate].n} gets <b>${CLIMATES[S.climate].sun} sun-hours</b> in the worst month. That's your design constraint — not the annual average. A setup that works in December also works in July.</div>`:''}
+    <div style="text-align:center;margin-top:8px;font-size:10px;color:var(--muted)">Presets give you a head start. You can adjust every choice afterward. 8 steps, ~3 minutes.</div>
+  </div>`;
+}
+function applyPreset(id){
+  S.preset=id;
+  if(id==='custom'){S.step=0;S.climate='temperate';S.count=6;S.hasGen=true;S.auto=3;S.batt='lifepo4_diy';R();return;}
+  const p=PRESETS.find(x=>x.id===id);
+  if(p.climate)S.climate=p.climate;if(p.p)S.count=p.p;if(p.gen!==null)S.hasGen=p.gen;
+  if(p.bd)S.auto=p.bd;if(p.bt)S.batt=p.bt;
+  S.step=0;R();
+}
+
+// ═══════════════ STEP 0: CLIMATE ═══════════════
+function buildClimate(){
+  const c=CLIMATES[S.climate];
+  return `<div class="stage">
+    <h2>🌍 STEP 1: Pick Your Climate Zone</h2>
+    <div class="desc">This sets <b>everything</b> — panel count, battery type, generator necessity. We design for the <b>worst sun month</b>, not the annual average.</div>
+    <div class="cards">${Object.entries(CLIMATES).map(([k,v])=>`
+      <div class="card ${S.climate===k?'pick':''}" onclick="S.climate='${k}';R()">
+        <span class="tier tier-${v.diff==='easy'?'a':v.diff==='medium'?'b':'c'}">${v.diff.toUpperCase()}</span>
+        <div class="emoji">${v.n.split(' ')[0]}</div>
+        <div class="name">${v.n}</div>
+        <div class="specs">${v.city} · Worst: ${v.sun}h · Best: ${v.best}h</div>
+        <div class="specs">${v.desc}</div>
+        <div style="font-size:9px;color:var(--gold);margin-top:2px">Generator: <b>${v.gen}</b></div>
+      </div>
+    `).join('')}</div>
+    ${S.climate?`<div class="callout edu">📐 <b>Why worst-month design:</b> ${c.n} averages ${((c.sun+c.best)/2).toFixed(1)} kWh/m²/d but drops to <b>${c.sun}</b> in the worst month — a <b>${((1-c.sun/c.best)*100).toFixed(0)}% drop</b> from peak. Size for average and you're short ${((1-c.sun/c.best)*100).toFixed(0)}% when you need power most.<br><br><b>Fun fact:</b> ${c.fun}</div>`:''}
+    ${K('What does "sun-hours" actually mean?','<b>1 peak sun-hour</b> = 1 kWh of solar energy hitting 1 m². It\'s NOT "hours of daylight." A cloudy winter day might have 10 hours of daylight but only 0.5 sun-hours. Your panels produce <code>watts × sun-hours × 0.75</code> watt-hours per day. The 0.75 accounts for MPPT losses, wiring, temp derate, dust, and aging.')}
     <div class="btn-row">
-      ${S.climate?`<button class="btn primary" onclick="S.step=1;R()">Next: Usage Audit →</button>`:`<span class="hint">Pick a climate zone ↑</span>`}
+      <button class="btn dim" onclick="S.step=-1;R()">← Presets</button>
+      ${S.climate?`<button class="btn primary" onclick="S.step=1;R()">Next: Usage Audit →</button>`:`<span class="hint">Pick a climate ↑</span>`}
       <span class="hint"><kbd>→</kbd> next</span>
     </div>
   </div>`;
 }
 
-// ── STEP 1: LOADS ──
+// ═══════════════ STEP 1: LOADS ═══════════════
 function buildLoads(){
   const t=L();
   return `<div class="stage">
-    <h2>📋 STEP 2: Usage Audit — What's Actually Running?</h2>
-    <div class="desc">Be honest. Overestimating costs cash, underestimating leaves you in the dark. Every watt needs panels + batteries behind it.</div>
+    <h2>📋 STEP 2: Usage Audit</h2>
+    <div class="desc">Be honest — overestimating costs cash, underestimating leaves you dark. Every watt needs panels + batteries to back it up.</div>
     ${LOADS.map((l,i)=>`
       <div class="toggle" onclick="LOADS[${i}].on=!LOADS[${i}].on;R()">
-        <input type="checkbox" ${l.on?'checked':''}>
-        <span class="tn">${l.emoji} ${l.n}</span>
-        <span class="tw">${l.w}W × ${l.h}h</span>
-        <span class="twh">${(l.w*l.h).toLocaleString()} Wh</span>
+        <input type="checkbox" ${l.on?'checked':''}><span class="tn">${l.emoji} ${l.n}</span>
+        <span class="tw">${l.w}W × ${l.h}h</span><span class="twh">${(l.w*l.h).toLocaleString()} Wh</span>
       </div>
     `).join('')}
     <div class="big-stat">
-      <div class="num">${t.toLocaleString()}</div>
-      <div class="unit">Watt-hours per day</div>
-      <div class="row">
-        <div class="stat"><div class="v">${PK()}W</div><div class="l">Peak draw</div></div>
-        <div class="stat"><div class="v">${LOADS.filter(l=>l.on).length}</div><div class="l">Appliances</div></div>
-        <div class="stat"><div class="v">${(t/1000).toFixed(1)}</div><div class="l">kWh/day</div></div>
-      </div>
+      <div class="num">${t.toLocaleString()}</div><div class="unit">Watt-hours per day</div>
+      <div class="row"><div class="st"><div class="v">${PK()}W</div><div class="l">Peak</div></div><div class="st"><div class="v">${LOADS.filter(l=>l.on).length}</div><div class="l">Items</div></div><div class="st"><div class="v">${(t/1000).toFixed(1)}</div><div class="l">kWh/day</div></div></div>
     </div>
-    <div class="callout tip">💡 <b>Pro tip:</b> A 60W DC fridge vs 200W AC fridge saves 1,680 Wh/day. That's 2-3 fewer panels. DC appliances are the silent MVP.</div>
+    <div class="callout tip">💡 <b>DC vs AC:</b> A 60W DC fridge vs 200W AC fridge saves <b>1,680 Wh/day</b> — that's 2-3 fewer solar panels. DC appliances are the silent MVP of off-grid systems.</div>
+    ${K('Watts vs Watt-hours — the energy math','<b>Watts (W)</b> = instantaneous power. Like mph on a speedometer.<br><b>Watt-hours (Wh)</b> = energy over time. Like miles traveled.<br><br>Your <b>inverter</b> must handle the PEAK watts (${PK()}W, plus 2-3× surge for motors). Your <b>panels + batteries</b> must supply the daily Wh (${t.toLocaleString()} Wh). These are different problems.')}
     <div class="btn-row">
       <button class="btn ghost" onclick="S.step=0;R()">← Climate</button>
-      <button class="btn primary" onclick="S.step=2;R()">Next: Pick Panels →</button>
+      <button class="btn primary" onclick="S.step=2;R()">Next: Panel Picker →</button>
       <span class="hint"><kbd>←</kbd> <kbd>→</kbd></span>
     </div>
   </div>`;
 }
 
-// ── STEP 2: PANELS ──
+// ═══════════════ STEP 2: PANELS ═══════════════
 function buildPanels(){
   const c=CLIMATES[S.climate],p=PANELS[S.panel],aw=p.w*S.count;
-  const ds=aw*c.sun*.75,tl=L(),cov=tl>0?Math.min(100,(ds/tl)*100):0;
-  const need=Math.ceil(tl/(p.w*c.sun*.75));
+  const sh=sun(),ds=aw*sh*.75,tl=L(),cov=tl>0?Math.min(100,(ds/tl)*100):0;
+  const need=Math.ceil(tl/(p.w*sh*.75));
   return `<div class="stage">
-    <h2>☀️ STEP 3: Panel Tier List</h2>
-    <div class="desc">Designing for <b>${c.sun} sun-hours</b> in ${c.n}. Not summer — <b>the hard month.</b> 0.75 system derate applied (MPPT × wiring × temp × dust).</div>
+    <h2>☀️ STEP 3: Panel Picker</h2>
+    <div class="desc">Designing for <b>${sh} sun-hours</b> (${sunLabel()}) in ${c.n}. Derate: 0.75 (MPPT×wiring×temp×dust×aging).</div>
+    <div class="season-toggle">
+      <button class="${S.season==='winter'?'active':''}" onclick="S.season='winter';R()">❄️ Worst Month</button>
+      <button class="${S.season==='summer'?'active':''}" onclick="S.season='summer';R()">☀️ Best Month</button>
+    </div>
     <div class="cards">${PANELS.map((pp,i)=>`
       <div class="card ${S.panel===i?'pick':''}" onclick="S.panel=${i};R()">
-        <span class="tier tier-${tierClass(pp.tier)}">${pp.tier}</span>
-        <div class="emoji">${pp.emoji}</div>
-        <div class="name">${pp.n}</div>
-        <div class="specs">${pp.w}W · Voc ${pp.voc}V</div>
-        <div class="price">$${pp.$} <span class="per">(${(pp.$/pp.w).toFixed(2)}/W)</span></div>
+        <span class="tier tier-${tierCls(pp.tier)}">${pp.tier}</span>
+        <div class="emoji">${pp.emoji}</div><div class="name">${pp.n}</div>
+        <div class="specs">${pp.w}W · Voc ${pp.voc}V · ${pp.desc}</div>
+        <div class="price">$${pp.$} <span class="per">(${(pp.$/pp.w).toFixed(2)}/W)</span> <span class="per" style="color:var(--dim)">range $${pp.$min}–$${pp.$max}</span></div>
+        <div class="affiliate">via ${pp.aff}</div>
       </div>
     `).join('')}</div>
-    <div class="slider">
-      <label>🔢 Qty</label>
-      <input type="range" min="1" max="30" value="${S.count}" oninput="S.count=+this.value;R()">
-      <span class="val">${S.count}×</span>
-    </div>
-    <div style="font-size:11px;color:var(--muted);text-align:center">Array: <b>${aw}W</b> · Voc=${(p.voc*S.count).toFixed(0)}V</div>
+    <div class="slider"><label>🔢 Quantity</label><input type="range" min="1" max="30" value="${S.count}" oninput="S.count=+this.value;R()"><span class="val">${S.count}×</span></div>
+    <div style="font-size:10px;color:var(--muted);text-align:center">Array: <b>${aw}W</b> · Voc=${(p.voc*S.count).toFixed(0)}V · $${(p.$*S.count).toLocaleString()} ($${(p.$/p.w).toFixed(2)}/W)</div>
     <div class="big-stat">
-      <div class="num">${Math.round(ds).toLocaleString()} Wh</div>
-      <div class="unit">Daily harvest (worst month, 0.75 derate)</div>
+      <div class="num">${Math.round(ds).toLocaleString()} Wh</div><div class="unit">Daily harvest (${sunLabel()}, 0.75 derate)</div>
       <div class="pbar"><div class="fill ${cov>=100?'fill-ok':cov>=70?'fill-warn':'fill-bad'}" style="width:${cov}%"></div></div>
-      <div style="font-size:12px;margin-top:4px">Covers <b>${cov.toFixed(0)}%</b> of ${tl.toLocaleString()} Wh load</div>
-      ${cov<100?`<div style="color:var(--gold);font-size:12px;margin-top:4px">⚠ Need <b>${need} panels</b> for 100% coverage</div>`:`<div style="color:var(--green);font-size:12px;margin-top:4px">✅ Array meets load even in worst month!</div>`}
+      <div style="font-size:11px;margin-top:3px">Covers <b>${cov.toFixed(0)}%</b> of ${tl.toLocaleString()} Wh load</div>
+      ${cov<100?`<div style="color:var(--gold);font-size:11px;margin-top:3px">⚠ Need <b>${need} panels</b> for 100% ${sunLabel()} coverage</div>`:`<div style="color:var(--green);font-size:11px;margin-top:3px">✅ Array meets load even in ${sunLabel()}!</div>`}
     </div>
+    <div class="aff-row">${affBtn(p.aff,'Find '+p.n)} <span style="font-size:9px;color:var(--dim)">Brand-agnostic link</span></div>
+    ${K('Series vs Parallel — how to wire your array','Each panel outputs ~${p.vmp||(p.voc*0.83).toFixed(0)}V at max power. <b>Series:</b> voltages add, current stays same. ${S.count} in series = ${(p.voc*S.count).toFixed(0)}V open-circuit. Thin wire, long runs OK — but shade on ONE panel kills the whole string.<br><br><b>Parallel:</b> currents add, voltage stays same. Shade-tolerant but needs thick expensive wire. <b>Series-parallel</b> is the sweet spot: groups of 2-4 in series, those groups paralleled. Your Voc of ${(p.voc*S.count).toFixed(0)}V needs a controller rated for ≥${(p.voc*S.count*1.2).toFixed(0)}V (cold margin).')}
     <div class="btn-row">
       <button class="btn ghost" onclick="S.step=1;R()">← Usage</button>
       <button class="btn primary" onclick="S.step=3;R()">Next: Battery Wars →</button>
@@ -287,7 +378,7 @@ function buildPanels(){
   </div>`;
 }
 
-// ── STEP 3: BATTERY ──
+// ═══════════════ STEP 3: BATTERY ═══════════════
 function buildBattery(){
   const tl=L(),bt=BATTERIES[S.batt],bv=bt.v;
   let cell=bt.cells?bt.cells[S.cell]:bt.opts[0];
@@ -295,44 +386,36 @@ function buildBattery(){
   const sn=Math.ceil(ba/ca),si=Math.ceil(S.sysV/bv),tc=sn*si;
   const aa=ca*sn,ak=(aa*S.sysV*bt.u)/1000,da=tl>0?(ak*1000)/tl:0;
   let bc=0;if(bt.diy){const b=bt.bms[S.bms];bc=tc*cell.$+b.$+tc*5+200}else bc=tc*cell.$;
+  // 10-year replacement costs
+  const tco10=(bt.cyc>=3500)?bc:(bt.cyc>=600)?bc*3:bc*5; // LiFePO4 lasts 10yr at 1 cycle/day, AGM needs 3 sets, flooded 5
   return `<div class="stage">
     <h2>🔋 STEP 4: The Battery Wars</h2>
-    <div class="desc">Your biggest expense. This choice ripples through your wallet for 10+ years. The r/OffGrid consensus: <b>DIY LiFePO4 is king.</b></div>
+    <div class="desc">Your biggest expense — by far. This choice ripples through your wallet for 10+ years. <b>10-year cost matters more than upfront.</b></div>
     <div class="cards">${Object.entries(BATTERIES).map(([k,b])=>`
       <div class="card ${S.batt===k?'pick':''}" onclick="S.batt='${k}';R()">
         <span class="tier ${b.cyc>=3500?'tier-s':b.cyc>=600?'tier-b':'tier-c'}">${(b.cyc/1000).toFixed(0)}k cycles</span>
-        <div class="name">${b.n} ${tag(b.tag,'')}</div>
+        <div class="name">${b.n} ${tag(b.tag)}</div>
         <div class="specs">${(b.u*100).toFixed(0)}% usable · ${b.cyc.toLocaleString()} cycles</div>
-        <div class="specs" style="color:var(--muted)">${b.desc}</div>
+        <div class="specs">${b.desc}</div>
       </div>
     `).join('')}</div>
-    ${bt.diy?`
-    <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap">
-      <select onchange="S.cell=+this.value;R()" style="flex:1;min-width:140px;background:#1a1a1a;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px">
-        ${bt.cells.map((c,i)=>`<option value="${i}" ${S.cell===i?'selected':''}>${c.cn} ${c.ah}Ah · $${c.$}</option>`).join('')}
-      </select>
-      <select onchange="S.bms=+this.value;R()" style="flex:1;min-width:140px;background:#1a1a1a;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px">
-        ${bt.bms.map((b,i)=>`<option value="${i}" ${S.bms===i?'selected':''}>${b.n} $${b.$}</option>`).join('')}
-      </select>
+    ${bt.diy?`<div style="display:flex;gap:6px;margin:8px 0;flex-wrap:wrap">
+      <select class="select-styled" onchange="S.cell=+this.value;R()">${bt.cells.map((c,i)=>`<option value="${i}" ${S.cell===i?'selected':''}>${c.cn} · $${c.$}/cell</option>`).join('')}</select>
+      <select class="select-styled" onchange="S.bms=+this.value;R()">${bt.bms.map((b,i)=>`<option value="${i}" ${S.bms===i?'selected':''}>${b.n} $${b.$}</option>`).join('')}</select>
     </div>`:''}
-    <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;align-items:center">
-      <select onchange="S.sysV=+this.value;R()" style="background:#1a1a1a;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px">
-        <option value="12" ${S.sysV===12?'selected':''}>12V system</option>
-        <option value="24" ${S.sysV===24?'selected':''}>24V system</option>
-        <option value="48" ${S.sysV===48?'selected':''}>48V system</option>
-      </select>
+    <div style="display:flex;gap:6px;margin:6px 0;flex-wrap:wrap;align-items:center">
+      <select class="select-styled" onchange="S.sysV=+this.value;R()"><option value="12" ${S.sysV===12?'selected':''}>12V System</option><option value="24" ${S.sysV===24?'selected':''}>24V System</option><option value="48" ${S.sysV===48?'selected':''}>48V System</option></select>
     </div>
-    <div class="slider">
-      <label>🗓️ Autonomy</label>
-      <input type="range" min="1" max="10" value="${S.auto}" oninput="S.auto=+this.value;R()">
-      <span class="val">${S.auto}d</span>
-    </div>
+    <div class="slider"><label>🗓️ Autonomy</label><input type="range" min="1" max="10" value="${S.auto}" oninput="S.auto=+this.value;R()"><span class="val">${S.auto}d</span></div>
     <div class="big-stat">
-      <div class="num">${ak.toFixed(1)} kWh</div>
-      <div class="unit">Usable battery capacity</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:4px">${si}S${sn}P · ${tc} ${bt.diy?'cells':'units'} · ${aa}Ah · ${da.toFixed(1)}d autonomy</div>
-       <div style="font-size:14px;color:var(--gold);font-weight:700;margin-top:6px">💰 $${bc.toLocaleString()} ($${(bc/ak).toFixed(0)}/kWh)</div>
+      <div class="num">${ak.toFixed(1)} kWh</div><div class="unit">Usable capacity · ${da.toFixed(1)}d autonomy · $${(bc/ak).toFixed(0)}/kWh</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${si}S${sn}P · ${tc} ${bt.diy?'cells':'units'} · ${aa}Ah · <b>$${bc.toLocaleString()}</b> upfront</div>
+      <div style="font-size:11px;color:var(--gold);margin-top:1px">10-year cost: <b>$${tco10.toLocaleString()}</b> (${bt.cyc>=3500?'no replacements needed':bt.cyc>=600?'~3 replacements':'~5 replacements'})</div>
     </div>
+    ${K('10-Year Battery Math — why chemistry matters','<table class="tbl"><tr><th>Chemistry</th><th>Upfront</th><th>Cycles</th><th>Replacements</th><th>10yr Cost</th></tr>'+
+      Object.entries(BATTERIES).map(([k,b])=>{let c2=b.cells?b.cells[1]:b.opts[0];let ba2=tl*S.auto/(S.sysV*b.u),sn2=Math.ceil(ba2/(c2.ah||100)),si2=Math.ceil(S.sysV/b.v);let bc2=0;if(b.diy){let bm=b.bms[0];bc2=sn2*si2*c2.$+bm.$+sn2*si2*5+200}else bc2=sn2*si2*c2.$;let reps=b.cyc>=3500?0:b.cyc>=600?2:4;let tco=reps===0?bc2:bc2*(reps+1);return`<tr${k===S.batt?' class="hl"':''}><td>${b.n.split(' ').slice(1).join(' ')}</td><td>$${bc2.toLocaleString()}</td><td>${b.cyc.toLocaleString()}</td><td>${reps===0?'None':reps+'×'}</td><td>$${tco.toLocaleString()}</td></tr>`;}).join('')+'</table><br>AGM dies in 3-5 years. Flooded needs watering and dies in 5-8. LiFePO4 lasts 10-15 years with daily cycling. The upfront price difference disappears fast.')}
+    ${bt.diy?K('⚠ DIY Battery Safety','LiFePO4 is the safest lithium chemistry — no thermal runaway, no fire risk. But: <b>top-balance cells before assembly</b> (charge all to 3.65V in parallel), use a <b>compression fixture</b> (prevents swelling), set BMS cutoffs conservatively (2.5V-3.65V), and <b>never charge below 0°C</b> (use heating pads if needed). A well-built DIY bank is safer than a mystery drop-in from Amazon.'):''}
+    <div class="aff-row">${affBtn(bt.aff||'amazon','Find '+bt.n.split(' ').slice(1).join(' '))}</div>
     <div class="btn-row">
       <button class="btn ghost" onclick="S.step=2;R()">← Panels</button>
       <button class="btn primary" onclick="S.step=4;R()">Next: Generator →</button>
@@ -340,7 +423,7 @@ function buildBattery(){
   </div>`;
 }
 
-// ── STEP 4: GENERATOR ──
+// ═══════════════ STEP 4: GENERATOR ═══════════════
 function buildGenerator(){
   const bt=BATTERIES[S.batt],bv=bt.v;
   let cell=bt.cells?bt.cells[S.cell]:bt.opts[0];const ca=cell.ah||100;
@@ -353,105 +436,181 @@ function buildGenerator(){
   const sv=oc-gc2;
   return `<div class="stage">
     <h2>⚡ STEP 5: Generator Gambit</h2>
-    <div class="desc">A generator is the <b>cheapest battery you can buy.</b> 2h/day of generator runtime can slash battery costs by 40-60%. The math doesn't lie.</div>
+    <div class="desc">A generator is the <b>cheapest battery you can buy.</b> 2h/day runtime can slash your battery costs by 40-60%. r/OffGrid wisdom: gen + smaller battery > giant battery alone.</div>
     <div class="toggle" onclick="S.hasGen=!S.hasGen;R()">
-      <input type="checkbox" ${S.hasGen?'checked':''}>
-      <span class="tn"><b>I have/want a backup generator</b></span>
-      <span class="tw">${S.hasGen?'ON 🔥':'OFF 💤'}</span>
+      <input type="checkbox" ${S.hasGen?'checked':''}><span class="tn"><b>I have/want a backup generator</b></span><span class="tw">${S.hasGen?'ON 🔥':'OFF 💤'}</span>
     </div>
     ${S.hasGen?`
     <div class="slider"><label>⚡ Charge rate</label><input type="range" min="20" max="300" value="${S.genA}" oninput="S.genA=+this.value;R()"><span class="val">${S.genA}A</span></div>
     <div class="slider"><label>⏱️ Hours/day</label><input type="range" min=".5" max="8" step=".5" value="${S.genH}" oninput="S.genH=+this.value;R()"><span class="val">${S.genH}h</span></div>
     <div class="callout good">
       <b>💰 The Math:</b><br>
-      ${S.genA}A × ${S.sysV}V × ${S.genH}h = <b>${gkwh.toFixed(1)} kWh/day</b> (${(gkwh/L()*100).toFixed(0)}% of daily load)<br>
-      ${safe?`<span style="color:var(--green)">✅ Safe charge rate at 0.5C</span> (max ${(aa*.5).toFixed(0)}A)`:`<span style="color:#ff5252">⚠ ${S.genA}A exceeds 0.5C limit (${(aa*.5).toFixed(0)}A) — OK for short runs</span>`}<br>
-      Autonomy drops: <b>${S.auto}d → ${ra}d</b> — battery shrinks from ${sn*si} to ${gc} ${bt.diy?'cells':'units'}<br>
-      <b style="color:var(--green)">Saves $${Math.abs(sv).toLocaleString()} in batteries!</b> That's a Honda EU2200i right there.
-    </div>`:`
-    <div class="callout tip">💡 Toggle ON to see how a generator can save you thousands. The battery bank is your biggest cost — a $1,100 generator can cut it by $3K–$8K.</div>`}
+      ${S.genA}A × ${S.sysV}V × ${S.genH}h = <b>${gkwh.toFixed(1)} kWh/day</b> (${(gkwh/L()*100).toFixed(0)}% of load)<br>
+      ${safe?`<span style="color:var(--green)">✅ Safe at 0.5C</span> (max ${(aa*.5).toFixed(0)}A)`:`<span style="color:#ff5252">⚠ ${S.genA}A exceeds 0.5C (${(aa*.5).toFixed(0)}A) — OK for short runs</span>`}<br>
+      Autonomy drops: <b>${S.auto}d → ${ra}d</b> · Battery shrinks: ${sn*si} → ${gc} ${bt.diy?'cells':'units'}<br>
+      <b style="color:var(--green)">Saves $${Math.abs(sv).toLocaleString()} in batteries!</b> A $1,100 generator just paid for itself 4× over.
+    </div>`:`<div class="callout tip">💡 Toggle ON to see the generator math. A $1,100 generator can reduce a $15K battery bank to $6K. Best ROI in off-grid.</div>`}
+    ${K('Generator sizing rules of thumb','<b>Inverter generator</b> (Honda EU2200i, etc.): clean power, quiet, efficient. <b>Open-frame</b>: cheaper, louder, dirtier power. Size for your charge rate: a 2000W generator at 120V = ~16A AC, which a charger converts to ~${(1600/S.sysV).toFixed(0)}A at ${S.sysV}V DC.<br><br><b>Charge rate safety:</b> LiFePO4 can take 0.5C continuous, 1C for short runs. Lead-acid maxes at 0.2-0.3C. Never exceed 1C — BMS will trip or cells will degrade. Your bank at ${aa}Ah can safely take ${(aa*.5).toFixed(0)}A continuous.')}
     <div class="btn-row">
       <button class="btn ghost" onclick="S.step=3;R()">← Battery</button>
-      <button class="btn primary" onclick="S.step=5;R()">See Your Build →</button>
+      <button class="btn primary" onclick="S.step=5;R()">Next: Controller →</button>
     </div>
   </div>`;
 }
 
-// ── STEP 5: SUMMARY ──
+// ═══════════════ STEP 5: CONTROLLER ═══════════════
+function buildControllers(){
+  const p=PANELS[S.panel],aw=p.w*S.count,chargeA=aw/S.sysV,arrayVoc=p.voc*S.count;
+  const compat=CONTROLLERS.map(c=>{
+    const ok=arrayVoc<c.voc*.85,canHandle=chargeA<=c.a;
+    return {...c,ok,vHead:((c.voc-arrayVoc)/arrayVoc*100).toFixed(0),aHead:((c.a-chargeA)/chargeA*100).toFixed(0),fit:ok&&canHandle};
+  });
+  const best=compat.find(c=>c.fit)||compat[compat.length-1];
+  return `<div class="stage">
+    <h2>🎛️ STEP 6: Charge Controller Match</h2>
+    <div class="desc">The brain of your system. Mismatched controller = fried batteries or wasted solar. Your array: <b>${aw}W</b>, Voc <b>${arrayVoc.toFixed(0)}V</b>, charge current <b>${chargeA.toFixed(1)}A</b> at ${S.sysV}V.</div>
+    <div class="callout edu">📐 <b>MPPT vs PWM:</b> MPPT converts excess voltage to extra current (95-98% efficient). PWM just chops voltage (70-80%). With your ${arrayVoc.toFixed(0)}V array, PWM would waste ~${((1-(S.sysV/arrayVoc))*100).toFixed(0)}% of your power. <b>Always MPPT for >200W systems.</b></div>
+    <table class="tbl"><tr><th>Controller</th><th>Max Voc</th><th>Amps</th><th>V Headroom</th><th>A Headroom</th><th>Fit</th><th>Price</th></tr>
+    ${compat.map(c=>`<tr class="${c.t==='pwm'?'':c.fit?'hl':''}" style="cursor:pointer" onclick="S.ctrl=${compat.indexOf(c)};R()">
+      <td>${c.brand} ${c.model}</td><td>${c.voc}V</td><td>${c.a}A</td>
+      <td style="color:${c.ok?'var(--green)':'#ff5252'}">${c.ok?c.vHead+'% ✓':c.vHead+'% ✗'}</td>
+      <td style="color:${c.canHandle?'var(--green)':'#ff5252'}">${c.canHandle?c.aHead+'% ✓':c.aHead+'% ✗'}</td>
+      <td>${c.fit?'✅':'❌'}</td><td style="color:var(--gold);font-weight:700">$${c.$}</td>
+    </tr>`).join('')}</table>
+    <div class="callout ${best.fit?'good':'warn'}">${best.fit?`✅ Best match: <b>${best.brand} ${best.model}</b> — $${best.$} with ${best.vHead}% voltage headroom (cold-safe)`:`⚠ No ideal match. Closest: ${best.brand} ${best.model}. Consider different panels or system voltage.`}</div>
+    ${(()=>{const kb=`Panel voltage RISES in cold weather — up to 25% at -40°C. Your ${arrayVoc.toFixed(0)}V array could hit ${(arrayVoc*1.25).toFixed(0)}V in extreme cold. Always leave ≥15% margin between array Voc and controller max Voc. Your best match has ${best.vHead}% headroom — ${best.vHead>15?'safe in all conditions':'marginal or risky in cold'}.`;return K('Cold weather Voc warning',kb);})()}
+    <div class="btn-row">
+      <button class="btn ghost" onclick="S.step=4;R()">← Generator</button>
+      <button class="btn primary" onclick="S.step=6;R()">Next: 10-Year Cost →</button>
+    </div>
+  </div>`;
+}
+
+// ═══════════════ STEP 6: TCO DEEP DIVE ═══════════════
+function buildTCO(){
+  const bt=BATTERIES[S.batt],bv=bt.v;
+  let cell=bt.cells?bt.cells[S.cell]:bt.opts[0];const ca=cell.ah||100;
+  const ba=L()*S.auto/(S.sysV*bt.u),sn=Math.ceil(ba/ca),si=Math.ceil(S.sysV/bv);
+  const ak=(ca*sn*S.sysV*bt.u)/1000;
+  const c=CONTROLLERS.filter(x=>x.fit)[0]||CONTROLLERS[2];
+  const p=PANELS[S.panel],panelCost=S.count*p.$,battCost=bt.diy?(sn*si*cell.$+(bt.bms[S.bms]||bt.bms[0]).$+sn*si*5+200):sn*si*cell.$;
+  const genCost=S.hasGen?1100:0,total=panelCost+battCost+genCost+(c?c.$:300);
+  
+  // 10yr TCO calculation
+  const chemistries=[{k:'lifepo4_diy',n:'DIY LiFePO4'},{k:'lifepo4_dropin',n:'Drop-In LiFePO4'},{k:'agm',n:'AGM'},{k:'flooded',n:'Flooded'}];
+  const tcoData=chemistries.map(ch=>{
+    const b=BATTERIES[ch.k],bv2=b.v;
+    let c2=b.cells?b.cells[1]:b.opts[0];
+    const sn2=Math.ceil((L()*S.auto/(S.sysV*b.u))/(c2.ah||100)),si2=Math.ceil(S.sysV/bv2),tc2=sn2*si2;
+    let bc2=0;if(b.diy){const bm=b.bms[0];bc2=tc2*c2.$+bm.$+tc2*5+200}else bc2=tc2*c2.$;
+    const reps=b.cyc>=3500?1:(b.cyc>=600?3:5);
+    const total10=bc2*reps+panelCost+(S.hasGen?1100:0)+(c?c.$:300);
+    const ak2=(c2.ah*sn2*S.sysV*b.u)/1000;
+    return {k:ch.k,n:ch.n,upfront:bc2,kwh:ak2,reps:reps===1?'None':(reps-1)+'×',total10,costPerKwh10:total10/(ak2*365*10)};
+  });
+  return `<div class="stage">
+    <h2>📊 STEP 7: 10-Year Total Cost of Ownership</h2>
+    <div class="desc">Upfront price lies. <b>10-year cost tells the truth.</b> Same load (${L().toLocaleString()} Wh/day), same autonomy (${S.auto}d), same panels and generator — only the battery chemistry changes.</div>
+    <div class="tco-grid">
+      <div class="tco-cell header">Chemistry</div><div class="tco-cell header">Upfront</div><div class="tco-cell header">Replacements</div><div class="tco-cell header">10yr Total</div>
+      ${tcoData.map(d=>`<div class="tco-cell ${d.k===S.batt?'best':d.k==='agm'||d.k==='flooded'?'worst':''}"><b>${d.n}</b></div><div class="tco-cell">$${d.upfront.toLocaleString()}<div class="sub">${d.kwh.toFixed(1)} kWh</div></div><div class="tco-cell">${d.reps}</div><div class="tco-cell"><span class="big">$${d.total10.toLocaleString()}</span></div>`).join('')}
+    </div>
+    <div class="callout good">💰 <b>The hidden cost of "cheap" batteries:</b> A ${tcoData.find(d=>d.k==='agm').n} bank costs $${tcoData.find(d=>d.k==='agm').upfront.toLocaleString()} upfront — looks cheaper than ${tcoData.find(d=>d.k==='lifepo4_diy').n} at $${tcoData.find(d=>d.k==='lifepo4_diy').upfront.toLocaleString()}. But by year 10, you've bought <b>${tcoData.find(d=>d.k==='agm').reps} sets</b> and spent <b>$${tcoData.find(d=>d.k==='agm').total10.toLocaleString()}</b> total. The LiFePO4 is still on its first set.</div>
+    ${K('Why LiFePO4 wins the long game','<b>Cycle life:</b> AGM = 600 cycles (2 years daily), Flooded = 400 (1.5 years), LiFePO4 = 4,000 (11+ years).<br><b>Usable capacity:</b> Lead-acid can only use 50% without damage. LiFePO4 gives 95-100%.<br><b>Peukert effect:</b> Lead-acid loses capacity at high discharge rates. LiFePO4 doesn\'t.<br><b>Weight:</b> LiFePO4 = 12 lbs/kWh. AGM = 50 lbs/kWh. Matters for vans and boats.<br><b>Maintenance:</b> LiFePO4 = zero. Flooded = monthly watering. AGM = none but dies fast.<br><br>The only reason to buy lead-acid in 2026 is if you literally can\'t afford LiFePO4 upfront — and even then, save up.')}
+    <div class="btn-row">
+      <button class="btn ghost" onclick="S.step=5;R()">← Controller</button>
+      <button class="btn primary" onclick="S.step=7;R()">See Final Build →</button>
+    </div>
+  </div>`;
+}
+
+// ═══════════════ STEP 7: SUMMARY ═══════════════
 function buildSummary(){
-  const c=CLIMATES[S.climate],p=PANELS[S.panel],aw=p.w*S.count;
-  const ds=aw*c.sun*.75,tl=L(),cov=tl>0?Math.min(100,(ds/tl)*100):0;
+  const c=CLIMATES[S.climate],p=PANELS[S.panel],aw=p.w*S.count,sh=sun();
+  const ds=aw*sh*.75,tl=L(),cov=tl>0?Math.min(100,(ds/tl)*100):0;
   const bt=BATTERIES[S.batt],bv=bt.v;
   let cell=bt.cells?bt.cells[S.cell]:bt.opts[0];const ca=cell.ah||100;
   const ba=tl*S.auto/(S.sysV*bt.u),sn=Math.ceil(ba/ca),si=Math.ceil(S.sysV/bv),tc=sn*si;
-  const aa=ca*sn,ak=(aa*S.sysV*bt.u)/1000;
+  const aa=ca*sn,ak=(aa*S.sysV*bt.u)/1000,da=tl>0?(ak*1000)/tl:0;
   let bc=0;if(bt.diy){const b=bt.bms[S.bms];bc=tc*cell.$+b.$+tc*5+200}else bc=tc*cell.$;
-  const panelCost=S.count*p.$;
-  const genCost=S.hasGen?1100:0;
-  const total=bc+panelCost+genCost;
+  const panelCost=S.count*p.$,genCost=S.hasGen?1100:0;
+  const ctrlCompat=CONTROLLERS.map(c2=>{const ok=(p.voc*S.count)<c2.voc*.85,canHandle=(aw/S.sysV)<=c2.a;return{...c2,ok,canHandle,fit:ok&&canHandle};});
+  const bestCtrl=ctrlCompat.find(c2=>c2.fit)||CONTROLLERS[2];
+  const total=bc+panelCost+genCost+bestCtrl.$;
   const bfb=tl/(total/1000);
   const genStr=S.hasGen?`${S.genA}A × ${S.genH}h = ${(S.genA*S.sysV*S.genH/1000).toFixed(1)} kWh/day`:'None — pure solar';
-  const reddit=`**⚡ r/OffGrid Power Picker Build**\n\n`+
-    `**Climate:** ${c.n} (${c.city}) — ${c.sun} sun-hours worst month\n`+
-    `**Daily Load:** ${tl.toLocaleString()} Wh (${LOADS.filter(l=>l.on).length} appliances, ${PK()}W peak)\n\n`+
-    `**☀️ Solar:** ${S.count}× ${p.n} (${aw}W total) — $${panelCost.toLocaleString()}\n`+
-    `  • Daily harvest: ${Math.round(ds).toLocaleString()} Wh （worst month, 0.75 derate)\n`+
+  
+  // Inverter recommendation
+  const peakW=PK(),invW=Math.max(2000,Math.ceil(peakW*1.5/500)*500);
+  const invCost=invW<=2000?400:invW<=3000?800:1200;
+  
+  const reddit=`**⚡ r/OffGrid Power Picker — My System Build**\n\n`+
+    `**🌍 Climate:** ${c.n} (${c.city}) — ${sh} sun-hrs (${sunLabel()})\n`+
+    `**📋 Daily Load:** ${tl.toLocaleString()} Wh (${LOADS.filter(l=>l.on).length} appliances, ${PK()}W peak)\n\n`+
+    `**☀️ Solar:** ${S.count}× ${p.n} (${aw}W) — $${panelCost.toLocaleString()}\n`+
+    `  • Daily harvest: ${Math.round(ds).toLocaleString()} Wh (${sunLabel()}, 0.75 derate)\n`+
     `  • Coverage: ${cov.toFixed(0)}%\n\n`+
     `**🔋 Battery:** ${bt.n.split(' ').slice(1).join(' ')} — ${si}S${sn}P (${tc} ${bt.diy?'cells':'units'}, ${aa}Ah)\n`+
-    `  • Capacity: ${ak.toFixed(1)} kWh usable (${S.auto}d autonomy)\n`+
+    `  • Capacity: ${ak.toFixed(1)} kWh usable (${da.toFixed(1)}d autonomy)\n`+
     `  • Cost: $${bc.toLocaleString()} ($${(bc/ak).toFixed(0)}/kWh)\n\n`+
-    `**⚡ Generator:** ${genStr} — $${genCost.toLocaleString()}\n\n`+
-    `**💰 TOTAL: $${Math.round(total).toLocaleString()}**\n`+
+    `**⚡ Generator:** ${genStr} — $${genCost.toLocaleString()}\n`+
+    `**🎛️ Controller:** ${bestCtrl.brand} ${bestCtrl.model} — $${bestCtrl.$}\n`+
+    `**🔌 Inverter:** ~${invW}W pure sine wave — ~$${invCost}\n\n`+
+    `**💰 SYSTEM TOTAL: $${Math.round(total+invCost).toLocaleString()}** ($${Math.round(total/1000)}k w/o inverter)\n`+
     `**📊 Bang-for-Buck: ${bfb.toFixed(0)} Wh/day per $1,000** ${bfb>200?'🏆 Excellent':bfb>140?'⭐ Good':'⚡ Needs work'}`;
   
   return `<div class="stage" style="border-color:var(--upvote);box-shadow:0 0 24px var(--upvote-dim)">
-    <h2 style="color:var(--upvote)">🏆 Your Power Setup</h2>
-    <div class="desc">Optimized for <b>${c.n}</b> · ${c.sun} sun-hours worst month · 0.75 derate</div>
+    <h2 style="color:var(--upvote)">🏆 Your Complete Power System</h2>
+    <div class="desc">Optimized for <b>${c.n}</b> · ${sh} sun-hours (${sunLabel()}) · 0.75 derate · 10-year LiFePO4 chemistry</div>
     <div class="big-stat">
       <div class="num" style="color:${bfb>200?'var(--green)':bfb>140?'var(--gold)':'#ff5252'}">${bfb.toFixed(0)}</div>
-      <div class="unit">Wh/day per $1,000</div>
+      <div class="unit">Wh/day per $1,000 invested</div>
+      <div class="row">
+        <div class="st"><div class="v">$${Math.round((total+invCost)/1000)}k</div><div class="l">System</div></div>
+        <div class="st"><div class="v">${cov.toFixed(0)}%</div><div class="l">Coverage</div></div>
+        <div class="st"><div class="v">${da.toFixed(1)}d</div><div class="l">Autonomy</div></div>
+      </div>
     </div>
-    <div class="stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
-      <div><div style="font-size:22px;font-weight:900;color:var(--upvote)">${S.count}×</div><div style="font-size:9px;color:var(--muted)">${p.n}</div></div>
-      <div><div style="font-size:22px;font-weight:900;color:var(--upvote)">${ak.toFixed(1)}</div><div style="font-size:9px;color:var(--muted)">kWh ${bt.n.split(' ')[1]}</div></div>
-      <div><div style="font-size:22px;font-weight:900;color:var(--upvote)">$${Math.round(total/1000)}k</div><div style="font-size:9px;color:var(--muted)">Total cost</div></div>
+    <div class="summary-card">
+      <div class="build">
+        <div>🌍 <b>Climate:</b> ${c.n} (${c.city}) — ${sh} sun-hrs (${sunLabel()})</div>
+        <div>📋 <b>Load:</b> ${tl.toLocaleString()} Wh/day · ${LOADS.filter(l=>l.on).length} appliances · ${PK()}W peak</div>
+        <div>☀️ <b>Solar:</b> ${S.count}× ${p.n} = ${aw}W · ${Math.round(ds).toLocaleString()} Wh/day · ${cov.toFixed(0)}% coverage · <b>$${panelCost.toLocaleString()}</b></div>
+        <div>🔋 <b>Battery:</b> ${si}S${sn}P ${bt.n.split(' ').slice(1).join(' ')} · ${ak.toFixed(1)} kWh · ${da.toFixed(1)}d autonomy · <b>$${bc.toLocaleString()}</b></div>
+        <div>🎛️ <b>Controller:</b> ${bestCtrl.brand} ${bestCtrl.model} · <b>$${bestCtrl.$}</b></div>
+        <div>⚡ <b>Generator:</b> ${genStr} · <b>$${genCost.toLocaleString()}</b></div>
+        <div>🔌 <b>Inverter:</b> ~${invW}W pure sine wave · ~$${invCost} (handles ${PK()}W × 1.5 surge margin)</div>
+        <div style="font-size:13px;font-weight:700;color:var(--upvote);margin-top:4px">💰 TOTAL: $${Math.round(total+invCost).toLocaleString()}</div>
+      </div>
     </div>
-    <div class="build">
-      <div>🌍 <b>Climate:</b> ${c.n} (${c.city}) — ${c.sun} sun-hours</div>
-      <div>📋 <b>Load:</b> ${tl.toLocaleString()} Wh/day · ${LOADS.filter(l=>l.on).length} appliances</div>
-      <div>☀️ <b>Solar:</b> ${S.count}× ${p.n} = ${aw}W · ${Math.round(ds).toLocaleString()} Wh/day · ${cov.toFixed(0)}% coverage</div>
-      <div>🔋 <b>Battery:</b> ${si}S${sn}P ${bt.n.split(' ').slice(1).join(' ')} · ${ak.toFixed(1)} kWh · ${S.auto}d autonomy</div>
-      <div>⚡ <b>Generator:</b> ${genStr}</div>
-      <div>💰 <b>Total:</b> $${Math.round(total).toLocaleString()} ($${(bc/ak).toFixed(0)}/kWh battery, $${(p.$/p.w).toFixed(2)}/W solar)</div>
+    <div style="margin-top:10px">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">📋 Reddit-Ready Build (copiable)</div>
+      <textarea class="copy-box" rows="10" readonly id="redditCopy">${reddit}</textarea>
+      <button class="btn primary" style="margin-top:6px" onclick="copyReddit()">📋 Copy for Reddit</button>
+      <span id="copyOk" style="font-size:10px;color:var(--green);margin-left:6px;display:none">Copied!</span>
     </div>
-    <div style="margin-top:12px">
-      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px">📋 Reddit Comment (copy-ready)</div>
-      <textarea class="copy-box" rows="8" readonly id="redditCopy">${reddit}</textarea>
-      <button class="btn primary" style="margin-top:8px" onclick="copyReddit()">📋 Copy for Reddit</button>
-      <span id="copyOk" style="font-size:11px;color:var(--green);margin-left:8px;display:none">Copied!</span>
-    </div>
+    <div class="callout edu" style="margin-top:10px">🛒 <b>Where to buy (brand-agnostic):</b> Panels: local distributors > SanTan Solar (used) > Renvu > Signature Solar. Cells: Docan Power > 18650BatteryStore. BMS: JK BMS > JBD. Inverters/controllers: Current Connected > AltE Store. Always compare 3 quotes.</div>
     <div class="btn-row">
-      <button class="btn ghost" onclick="S.step=4;R()">← Back</button>
-      <button class="btn dim" onclick="S.step=0;R()">🔄 Start Over</button>
+      <button class="btn ghost" onclick="S.step=6;R()">← TCO</button>
+      <button class="btn dim" onclick="S.step=-1;S.preset=null;R()">🔄 Start Over</button>
     </div>
   </div>`;
 }
 
 function copyReddit(){
-  const ta=document.getElementById('redditCopy');
-  ta.select();navigator.clipboard.writeText(ta.value);
+  const ta=document.getElementById('redditCopy');ta.select();navigator.clipboard.writeText(ta.value);
   document.getElementById('copyOk').style.display='inline';
   setTimeout(()=>document.getElementById('copyOk').style.display='none',2000);
 }
 
-// ── KEYBOARD ──
+// ═══════════════ KEYBOARD ═══════════════
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
-  if((e.key==='ArrowRight'||e.key==='ArrowDown')&&S.step<5){S.step++;R();}
-  else if((e.key==='ArrowLeft'||e.key==='ArrowUp')&&S.step>0){S.step--;R();}
+  if((e.key==='ArrowRight'||e.key==='ArrowDown')&&S.step<7){S.step++;R();}
+  else if((e.key==='ArrowLeft'||e.key==='ArrowUp')&&S.step>-1){S.step--;R();}
 });
 
-// ── INIT ──
+// ═══════════════ INIT ═══════════════
 R();
 </script>
 </body>
