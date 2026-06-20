@@ -33,6 +33,11 @@ jobs:
       - name: Build
         run: npm run build
       
+      - name: Copy standalone tools
+        run: |
+          cp reddit-power-picker.html dist/
+          cp index-standalone.html dist/ 2>/dev/null || true
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
