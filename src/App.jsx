@@ -449,6 +449,27 @@ const THEMATICS = {
           o("lte", "4G/LTE router + antenna", "If there's any cell signal, a roof antenna can pull it in cheap.", 200, [], "If you have 1-2 bars on your phone, a $50 roof antenna + $50 router can turn that into usable internet. Much lower power draw than Starlink (~10W). Always worth checking first."),
         ],
       },
+      {
+        id: "detect", title: "12 · Detection & deterrence", multi: true, optional: true,
+        intro: "Layered security: deter, detect, delay. A dog is the best first alarm. Motion lights make intruders think twice. Cameras give you eyes when you're away.",
+        options: [
+          o("dog", "Guardian dog", "The original security system. Warns, deters, and protects. Also great company.", 200, ["diyfav"], "PROS: Works 24/7 without power. Deters most intruders. Loyal friend. CONS: Needs food, training, vet care. Not a set-and-forget solution."),
+          o("motion", "Motion-sensor floodlights", "Solar-powered motion lights. $30-80 each. Bright LED floods that surprise anything moving at night.", 50, [], "PROS: Cheap, solar-powered, effective deterrent. CONS: May false-trigger on animals. Cover all approaches — at least 4 lights."),
+          o("alarm", "Perimeter alarm system", "Wireless door/window sensors + loud siren. Runs on 12V. Alerts you to any breach.", 180, [], "PROS: Covers every entry point. Runs on 12V. CONS: Needs occasional battery changes. Loud enough to scare most intruders."),
+          o("cameras", "Security cameras (cellular)", "Reolink Go or similar — solar + 4G, no WiFi needed. Motion alerts to your phone.", 350, ["upgrade"], "PROS: Remote eyes anywhere with cell signal. Solar-powered. CONS: Monthly data plan. Privacy concern — cameras see everything."),
+          o("fiber", "Fiber-optic perimeter", "Buried fiber detects footsteps/vehicles along your boundary. Military-grade tech.", 2500, ["upgrade"], "PROS: Impossible to jam. Covers long perimeters. CONS: Expensive. Needs trenching. Overkill for most setups."),
+          o("drone", "Surveillance drone", "Quick aerial recon of your property. Check fence lines and water sources from above.", 400, [], "PROS: Fast property inspection. Deters by presence. CONS: Battery life. Wind-sensitive. Requires practice to fly well."),
+        ],
+      },
+      {
+        id: "harden", title: "13 · Physical hardening", multi: true, optional: true,
+        intro: "Make your home hard to get into. Reinforced doors, shatter-resistant windows, and a safe room buy you time when it matters.",
+        options: [
+          o("door", "Hardened door + frame", "Steel-core door with reinforced frame and long-throw deadbolts. Standard doors kick in seconds.", 400, ["safety"], "PROS: Most break-ins are through doors — harden this first. CONS: Heavy. Professional installation recommended."),
+          o("saferoom", "Safe room / panic room", "Reinforced interior room with separate comms, supplies, and ventilation. Your last line.", 2500, ["upgrade"], "PROS: Ultimate fallback. Survivable for days. CONS: Expensive. Takes space. Must be properly designed."),
+          o("lexan", "Lexan / polycarbonate windows", "Shatter-resistant window film or full polycarbonate replacement. Stops break-ins and hurricane debris.", 300, ["safety"], "PROS: Burglars can't just smash and reach. Also storm protection. CONS: Can scratch. More expensive than glass."),
+        ],
+      },
     ],
   },
 
