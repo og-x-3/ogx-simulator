@@ -37,6 +37,13 @@ const CLIMATES = [
   { id: "boreal", name: "Cold / Boreal", emoji: "🌲❄️", sun: 0.4, blurb: "Long hard winters, short summers, low winter sun — freeze risk." },
 ];
 
+const SUN_HOURS = { // Worst-month peak sun hours (NASA POWER 30yr climatology)
+  tropics: 4.25, arid: 3.11, temperate: 0.48, mediterranean: 1.86,
+  maritime: 0.85, alpine: 2.30, boreal: 0.05
+};
+// Watt-hours per appliance — used by PowerInsight
+const LOAD_WH = { lights: 125, phones: 150, starlink: 1200, dcfridge: 480, waterpump: 100, tools: 200, kitchen: 400, ac: 3000 };
+
 const SETUPS = [
   { id: "catamaran", name: "Catamaran / Boat", emoji: "⛵", blurb: "Liveaboard sailing cat. Tight space, salt, motion — squeeze every watt." },
   { id: "van", name: "Camper Van", emoji: "🚐", blurb: "Mobile & stealthy. Minimal roof, minimal tank — efficiency rules." },
@@ -58,12 +65,41 @@ const hasSolar = (h) => h.has("electricity","generate","panel100") || h.has("ele
 const hasLithium = (h) => h.has("electricity","battery","lifepo4_100ah") || h.has("electricity","battery","lifepo4_diy");
 const hasBackup = (h) => h.has("electricity","backup","gen_2000") || h.has("electricity","backup","gen_3500");
 
+const OPTION_EMOJI = {
+  // needs
+  lights:"💡",phones:"📱",starlink:"🛰️",dcfridge:"🧊",waterpump:"🚿",tools:"🔧",kitchen:"🍳",ac:"❄️",
+  // voltage
+  v12:"🔌",v24:"🔌",v48:"⚡",
+  // panels
+  panel100:"☀️",panel200:"☀️",panel400:"☀️",panel450n:"☀️",panelused:"♻️",wind:"🌬️",hydro:"💧",
+  // controllers
+  mppt_75_15:"⚙️",mppt_100_20:"⚙️",mppt_100_30:"⚙️",mppt_100_50:"⚙️",mppt_150_35:"⚙️",mppt_150_60:"⚙️",mppt_150_100:"⚙️",mppt_250_60:"⚙️",pwm:"⚙️",epver:"⚙️",
+  // batteries
+  lifepo4_100ah:"🔋",lifepo4_diy:"🔋",agm_100ah:"🔋",lead_100ah:"🔋",sodium:"🔋",
+  // inverters
+  no_inv:"✖️",inv_1000:"⚡",inv_2000:"⚡",inv_3000:"⚡",inv_charger:"⚡",
+  // wiring
+  pv_wire:"🔌",combiner:"📦",breakers:"🛡️",busbar:"🔗",grounding:"⛓️",surge:"⚡",monitor:"📊",
+  // backup
+  gen_budget:"⛽",gen_quiet:"⛽",gen_heavy:"⛽",gen_charger:"🔌",gen_autostart:"🤖",
+  // security
+  dog:"🐕",motion:"💡",alarm:"🚨",cameras:"📷",fiber:"🔬",drone:"🛸",
+  // harden
+  door:"🚪",saferoom:"🏰",lexan:"🪟",
+  // fire
+  fireball:"🧯",extinguishers:"🧯",tempmon:"🌡️",firepump:"🚒",
+  // community
+  radionet:"📻",none:"✖️",
+  // internet
+  lte:"📶",
+};
+
 const THEMATICS = {
   electricity: {
     label: "Electricity", color: C.power, icon: Zap,
     short: "Power your off-grid life — from a single panel to a full home system.",
     intro:
-      "Let's build your power system together, step by step. Start with what you actually need to run, pick a voltage, choose your panels and battery, then protect it all. Every option here is real gear you can buy — Renogy, Victron, Battle Born, Canadian Solar. No fluff, just what works.",
+      "Let's build your power system together, step by step. Start with what you actually need to run, pick a voltage, choose your panels and battery, then protect it all. Every option here is real gear with verified pricing — no fluff, just what works.",
     steps: [
       {
         id: "needs", title: "1 · What will you run?", multi: true,
@@ -92,7 +128,7 @@ const THEMATICS = {
         id: "generate", title: "3 · Solar panels — pick your size", multi: true,
         intro: "Math: daily watt-hours ÷ 5 sun hours × 1.3 safety = watts needed. Panama gets ~5 peak sun hours year-round. Bigger panels cost less per watt but are heavier. Mix and match tiers — you can pick more than one.",
         options: [
-          o("panel100", "100W panel — Renogy ~$80", "42×20\", 14 lbs. Perfect for small setups and tight spaces. Best value in 4-packs.", 80, ["diyfav"], "PROS: Light enough for one person. Fits anywhere. CONS: More wiring per watt. $0.80/W retail.",
+          o("panel100", "100W panel — ~$80", "42×20\", 14 lbs. Perfect for small setups and tight spaces. Best value in 4-packs.", 80, ["diyfav"], "PROS: Light enough for one person. Fits anywhere. CONS: More wiring per watt. $0.80/W retail.",
             {budget:{min:80,max:8000,step:80,def:400},choices:[
               {key:"qty",label:"How many?",opts:[
                 {id:"1",l:"1 panel (100W)",e:"Lights + phone only — ~500Wh/day"},
@@ -114,7 +150,7 @@ const THEMATICS = {
               const panelCost = qty>=4?qty*65:qty*80;
               const dailyWh = Math.round(watts*4.5*0.82);
               return {fields:[
-                ["Array",watts+"W ("+qty+"× Renogy 100W)"],
+                ["Array",watts+"W ("+qty+"× 100W)"],
                 ["Daily","~"+dailyWh+"Wh"],
                 ["Cost","$"+(qty>=4?"0.65":"0.80")+"/W"],
                 ["Mount",v.mount==="tilt"?"Tilt legs":v.mount==="ground"?"Ground rack":"Z-brackets"],
@@ -131,15 +167,15 @@ const THEMATICS = {
                 {id:"6",l:"6 panels (1200W)",e:"Family cabin — ~6000Wh/day"}
               ]},
               {key:"brand",label:"Brand",opts:[
-                {id:"renogy",l:"Renogy $220",e:"Better warranty, US support"},
-                {id:"richsolar",l:"Rich Solar $190",e:"Good value, slightly cheaper"}
+                {id:"standard",l:"Standard $220",e:"Better warranty, US support"},
+                {id:"budget",l:"Budget $190",e:"Good value, slightly cheaper"}
               ]}
             ],output:(v)=>{
               const qty = parseInt(v.qty)||1;
-              const price = v.brand==="renogy"?220:190;
+              const price = v.brand==="standard"?220:190;
               const dailyWh = Math.round(qty*200*4.5*0.82);
               return {fields:[
-                ["Array",(qty*200)+"W ("+qty+"× 200W "+ (v.brand==="renogy"?"Renogy":"Rich Solar")+")"],
+                ["Array",(qty*200)+"W ("+qty+"× 200W "+ (v.brand==="standard"?"Std":"Bgt")+")"],
                 ["Daily","~"+dailyWh+"Wh"],
                 ["$/W","$"+(price/200).toFixed(2)],
                 ["Weight",(qty*27)+" lbs"]
@@ -224,26 +260,26 @@ const THEMATICS = {
       {
         id: "controller", title: "4 · Charge controller", optional: true,
         relevant: (h) => h.any("electricity", "generate"),
-        intro: "The brain of your system. MPPT squeezes ~25% more power from the same panels. Victron SmartSolar is what the pros use — Bluetooth, reliable, 5-year warranty. Match it to your panels: (A) total watts ÷ battery voltage × 1.25 = amps needed. (B) panels in series × Voc × 1.15 < controller max volts. Don't worry — the descriptions tell you what works.",
+        intro: "The brain of your system. MPPT squeezes ~25% more power from the same panels. Match it to your panels: (A) total watts ÷ battery voltage × 1.25 = amps needed. (B) panels in series × Voc × 1.15 < controller max volts. The descriptions tell you what works.",
         options: [
-          o("victron_75_15", "Victron 75/15 — ~$120", "Tiny systems. 220W max on 12V. 1-2 × 100W panels. Bluetooth built-in.", 120, [], "PROS: Real MPPT in the smallest package. CONS: 15A max. Only for tiny setups."),
-          o("victron_100_20", "Victron 100/20 — ~$145", "Small systems. 290W on 12V. 2-3 × 100W or 1 × 400W. Most popular starter.", 145, [], "PROS: Perfect entry-level MPPT. CONS: 290W limit on 12V."),
-          o("victron_100_30", "Victron 100/30 — ~$140", "Medium-small. 440W on 12V. Handles most van/RV setups. Amazon: $135.", 140, [], "PROS: 30A, great value. CONS: 100V — max 2 × 400W in series."),
-          o("victron_100_50", "Victron 100/50 — ~$320", "Medium. 700W on 12V. 4-6 × 100W or parallel 400W strings. Fast charging.", 320, ["upgrade"], "PROS: 50A charging for bigger arrays. CONS: 100V limits series strings."),
-          o("victron_150_35", "Victron 150/35 — ~$350", "The standard. 1000W on 24V. 3 residential panels in series. Most common off-grid choice.", 350, [], "PROS: 150V handles 3 big panels in series. CONS: Costs more than 100V series."),
-          o("victron_150_60", "Victron 150/60 — ~$480", "Large 24V. 1720W on 24V. 3 × 400W in series. Handles most home arrays.", 480, ["upgrade"], "PROS: 60A, big headroom. CONS: Price jump from 150/35."),
-          o("victron_150_100", "Victron 150/100 — ~$850", "Big systems. 5760W on 48V. 4kW+ arrays. Can parallel multiple units.", 850, ["upgrade"], "PROS: 100A, handles 5kW+. CONS: Expensive. Overkill for small systems."),
-          o("victron_250_60", "Victron 250/60 — ~$680", "Long runs. 250V lets you use thin 10 AWG wire 200+ ft. Ground-mount arrays far from battery.", 680, ["upgrade"], "PROS: High voltage saves $$$ on wire. CONS: High voltage DC is dangerous."),
+          o("mppt_75_15", "MPPT 75V/15A — ~$120", "Tiny systems. 220W max on 12V. 1-2 × 100W panels. Bluetooth built-in.", 120, [], "PROS: Real MPPT in the smallest package. CONS: 15A max. Only for tiny setups."),
+          o("mppt_100_20", "MPPT 100V/20A — ~$145", "Small systems. 290W on 12V. 2-3 × 100W or 1 × 400W. Most popular starter.", 145, [], "PROS: Perfect entry-level MPPT. CONS: 290W limit on 12V."),
+          o("mppt_100_30", "MPPT 100V/30A — ~$140", "Medium-small. 440W on 12V. Handles most van/RV setups.", 140, [], "PROS: 30A, great value. CONS: 100V — max 2 × 400W in series."),
+          o("mppt_100_50", "MPPT 100V/50A — ~$320", "Medium. 700W on 12V. 4-6 × 100W or parallel 400W strings. Fast charging.", 320, ["upgrade"], "PROS: 50A charging for bigger arrays. CONS: 100V limits series strings."),
+          o("mppt_150_35", "MPPT 150V/35A — ~$350", "The standard. 1000W on 24V. 3 residential panels in series. Most common off-grid choice.", 350, [], "PROS: 150V handles 3 big panels in series. CONS: Costs more than 100V series."),
+          o("mppt_150_60", "MPPT 150V/60A — ~$480", "Large 24V. 1720W on 24V. 3 × 400W in series. Handles most home arrays.", 480, ["upgrade"], "PROS: 60A, big headroom. CONS: Price jump from 150/35."),
+          o("mppt_150_100", "MPPT 150V/100A — ~$850", "Big systems. 5760W on 48V. 4kW+ arrays. Can parallel multiple units.", 850, ["upgrade"], "PROS: 100A, handles 5kW+. CONS: Expensive. Overkill for small systems."),
+          o("mppt_250_60", "MPPT 250V/60A — ~$680", "Long runs. 250V lets you use thin 10 AWG wire 200+ ft. Ground-mount arrays far from battery.", 680, ["upgrade"], "PROS: High voltage saves $$$ on wire. CONS: High voltage DC is dangerous."),
           o("pwm", "PWM controller — ~$30", "Budget option. Only efficient with 36-cell \"12V\" panels. Wastes 25%+ vs MPPT.", 30, ["diyfav"], "PROS: Dirt cheap. Works. CONS: Wastes power. Only for 36-cell panels."),
-          o("epver", "EPever MPPT — ~$100", "Budget MPPT. Real tracking, not Victron quality but genuine MPPT. Good for secondary arrays.", 100, ["diyfav"], "PROS: Real MPPT at $100. CONS: No Bluetooth. Less refined than Victron."),
+          o("epver", "Budget MPPT — ~$100", "Budget MPPT. Real tracking, not premium quality but genuine MPPT. Good for secondary arrays.", 100, ["diyfav"], "PROS: Real MPPT at $100. CONS: No Bluetooth. Less refined than premium controllers."),
         ],
       },
       {
         id: "battery", title: "5 · Battery bank", multi: true,
         intro: "Your power when the sun's down. Size it: daily Wh ÷ voltage × days autonomy ÷ depth of discharge. Example: 2000Wh/day, 12V, 2 days, 80% DoD = 417Ah of LiFePO4. You can add more batteries later — parallel is common. For 3+ in parallel, use bus bars (equal cables = equal sharing).",
         options: [
-          o("lifepo4_100ah", "LiFePO4 drop-in 100Ah", "Battle Born $949 / Renogy $350 / SOK $280. 10yr life, 80% usable, zero maintenance.", 350, [], "PROS: Just works. 10+ years. Half the weight of lead. CONS: Can't charge below freezing. Battle Born is premium; Renogy is great value.",
-            {budget:{min:350,max:12000,step:350,def:1050},choices:[
+          o("lifepo4_100ah", "LiFePO4 100Ah — pick your brand", "100Ah 12.8V (1.28kWh). 3000-8000 cycles, 80% usable. LiTime $229 (21 lbs, metal case), Renogy $349 (BT, US support), SOK $429 (serviceable, BT), Battle Born $899 (10yr warranty, heated).", 350, [], "PROS: Just works. 10-15 years. Half the weight of lead. CONS: Can't charge below freezing (except self-heating models).",
+            {budget:{min:229,max:12000,step:230,def:1050},choices:[
               {key:"qty",label:"How many?",opts:[
                 {id:"1",l:"1 × 100Ah (1.0kWh usable)",e:"Lights + phone + pump for 1 day"},
                 {id:"2",l:"2 × 100Ah (2.0kWh)",e:"+ fridge + lights for 2 days"},
@@ -251,20 +287,25 @@ const THEMATICS = {
                 {id:"8",l:"8 × 100Ah (8.2kWh)",e:"Family home, 3-5 day autonomy"}
               ]},
               {key:"brand",label:"Brand",opts:[
-                {id:"renogy",l:"Renogy $350",e:"Great value. Bluetooth optional."},
-                {id:"sok",l:"SOK $280",e:"Budget quality. Metal case. Good reviews."},
-                {id:"battleborn",l:"Battle Born $949",e:"Premium. Heated option. 10yr warranty."}
+                {id:"litime",l:"LiTime $229",e:"Best value. 4000 cycles. 21 lbs. Metal case w/ good BMS. Amazon favorite — dozens of teardowns confirm build quality."},
+                {id:"renogy",l:"Renogy $349",e:"Solid mid-tier. BT monitor built-in. 4000+ cycles. Good US support & warranty. Well-known for solar kits."},
+                {id:"sok",l:"SOK $429",e:"Fully serviceable — open the case, replace cells yourself. Metal case. BT + heater-pad ready. 4000-8000 cycles. Favorite of DIY community."},
+                {id:"battleborn",l:"Battle Born $899",e:"Gold standard. 10yr warranty. Internal heater. US-assembled with US cells. 3000-5000 cycles. Used in ambulances, military, and serious builds."}
               ]}
             ],output:(v)=>{
               const qty = parseInt(v.qty)||1;
-              const price = v.brand==="battleborn"?949:v.brand==="sok"?280:350;
+              const price = v.brand==="battleborn"?899:v.brand==="sok"?429:v.brand==="renogy"?349:229;
+              const brandName = v.brand==="battleborn"?"Battle Born":v.brand==="sok"?"SOK":v.brand==="renogy"?"Renogy":"LiTime";
               const totalWh = qty*1280; const usableWh = Math.round(totalWh*0.8);
+              const wt = v.brand==="battleborn"?31:v.brand==="sok"?24:v.brand==="renogy"?26:21;
+              const war = v.brand==="battleborn"?"10yr":"2-5yr";
               return {fields:[
+                ["Brand",brandName+" ×"+qty],
                 ["Bank",qty+"× 100Ah = "+(qty*100)+"Ah @ 12.8V"],
                 ["Energy",(totalWh/1000).toFixed(1)+"kWh ("+usableWh/1000+"kWh usable)"],
-                ["Life","3000-5000 cycles · 10-15 years"],
-                ["Wiring","BUS BAR for 3+ in parallel"],
-                ["Weight",(qty*31)+" lbs"]
+                ["Cycles","3000-8000 · "+war+" warranty"],
+                ["Weight",(qty*wt)+" lbs"],
+                ["$/kWh","$"+(price/1.28).toFixed(0)]
               ],spent:Math.round(qty*price),budget:v._budget};
             }}),
           o("lifepo4_diy", "DIY LiFePO4 — build it", "4 × 3.2V 280Ah EVE cells + BMS = ~$500. Same cells as premium brands. Save 40%.", 500, ["diyfav"], "PROS: Half the price of drop-in. Learn your system. CONS: Needs assembly. No warranty. Must top-balance cells.",
@@ -292,13 +333,13 @@ const THEMATICS = {
       },
       {
         id: "inverter", title: "6 · Inverter",
-        intro: "Only needed for AC stuff. Pure sine wave only — modified sine kills electronics. Size for SURGE (startup), not running watts. A 900W grinder needs 2500W+ to start. 12V systems max at ~2000W — go 24V or 48V above that.",
+        intro: "Only needed for AC stuff. START SMALL — a 3000W inverter burns ~30W just being ON. If you're only running lights and a laptop (200W), that's 15% wasted as heat. Match the inverter to your ACTUAL loads. Size for SURGE (startup), not running watts. No inverter at all is the most efficient — DC native everything.",
         options: [
-          o("no_inv", "No inverter — DC only", "Most efficient. LED lights, DC fridge, USB charging all run native on DC. Zero standby draw.", 0, ["diyfav"], "PROS: Zero losses. Simplest. CONS: No AC appliances."),
-          o("inv_1000", "1000W pure sine — ~$300", "Victron Phoenix or Renogy. Laptops, TV, blender. Surge: 2000W. Idle: ~10W.", 300, [], "PROS: Low idle draw. Handles small AC loads. CONS: Won't start big motors."),
-          o("inv_2000", "2000W pure sine — ~$400", "Victron MultiPlus or Renogy. Microwave, washer, tools. Surge: 4000W. The van standard.", 400, [], "PROS: Runs most household stuff. CONS: On 12V, draws 167A — needs 2/0 AWG cable."),
-          o("inv_3000", "3000W pure sine — ~$800", "Victron MP-II 48V or EG4. Whole home. Surge: 6000W. Needs 24V or 48V.", 800, ["upgrade"], "PROS: Runs well pump, AC, induction cooktop. CONS: Needs 24V+. Idle ~30W."),
-          o("inv_charger", "Inverter-charger — ~$1400", "Victron MultiPlus-II. Inverter + charger + transfer switch in one. Clean, space-saving.", 1400, [], "PROS: 3 devices in 1. Auto transfer. CONS: Premium price."),
+          o("no_inv", "No inverter — DC only", "Zero waste. LED lights, DC fridge, USB charging run natively. Skip the inverter entirely if you can.", 0, ["diyfav"], "PROS: Zero idle loss. Simplest system. CONS: No AC appliances — must go all-DC."),
+          o("inv_1000", "1000W pure sine — ~$300", "Best for small loads. Idle: ~10W. Perfect for laptop, TV, blender. Surge: 2000W.", 300, [], "PROS: Low idle — only 10W wasted. Handles small AC loads. CONS: Won't start motors or microwaves."),
+          o("inv_2000", "2000W pure sine — ~$400", "The van standard. Idle: ~18W. Microwave, washer, tools. Surge: 4000W.", 400, [], "PROS: Runs most household stuff. CONS: 18W idle adds up — 430Wh/day just being on."),
+          o("inv_3000", "3000W pure sine — ~$800", "Whole home. Idle: ~30W. For well pumps, AC, induction. Needs 24V or 48V.", 800, ["upgrade"], "PROS: Runs anything. CONS: 30W idle = 720Wh/day wasted. Only worth it if you need the power."),
+          o("inv_charger", "Inverter-charger — ~$1400", "3-in-1: inverter + charger + transfer switch. Idle: ~20W. Clean, space-saving.", 1400, [], "PROS: All-in-one. Auto-transfer when grid/gen available. CONS: Premium price, 20W idle draw."),
         ],
       },
       {
@@ -308,47 +349,81 @@ const THEMATICS = {
           o("pv_wire", "10 AWG PV wire + MC4", "~$80. UV-resistant. Standard for arrays up to 30A. 8 AWG for runs over 50ft.", 80, ["safety"], "PROS: Rated for 30+ years outdoors. CONS: Buy genuine MC4s, not Amazon knockoffs."),
           o("combiner", "Combiner box", "~$123. Required for 3+ parallel strings. Fuses each string. MidNite MNPV6.", 123, ["safety"], "PROS: Safe, code-compliant. CONS: Another box to mount."),
           o("breakers", "DC breakers + fuses", "~$80. MidNite breakers. ANL fuse for battery main. Class-T for LiFePO4 (5000A interrupt).", 80, ["safety"], "PROS: Proper DC breakers don't weld shut. CONS: DC breakers cost more than AC."),
-          o("busbar", "Bus bar kit", "~$50. Blue Sea or Victron Lynx. Required for 3+ batteries. Equal cables = equal sharing.", 50, [], "PROS: Prevents battery murder. CONS: Must torque properly."),
+          o("busbar", "Bus bar kit", "~$50. Required for 3+ batteries. Equal cables = equal sharing.", 50, [], "PROS: Prevents battery murder. CONS: Must torque properly."),
           o("grounding", "Ground rod + wire", "~$60. 8ft copper rod + #6 AWG wire. Bond all panels and equipment to earth.", 60, ["safety"], "PROS: Lightning protection. Code requirement. CONS: Driving the rod is work."),
           o("surge", "Surge protector", "~$90. MidNite SPD. 50kA capacity. Protects from nearby lightning.", 90, ["safety"], "PROS: Cheap insurance. CONS: Replace after big surges."),
-          o("monitor", "Battery monitor", "~$130. Victron SmartShunt or BMV-712. Know your real state of charge — voltage lies.", 130, [], "PROS: Most useful accessory. Prevents battery murder. CONS: $130, but pays for itself."),
+          o("monitor", "Battery monitor", "~$130. Smart shunt or bluetooth monitor. Know your real state of charge — voltage lies.", 130, [], "PROS: Most useful accessory. Prevents battery murder. CONS: $130, but pays for itself."),
         ],
       },
       {
         id: "backup", title: "8 · Backup generator", optional: true, multi: true,
-        intro: "Your insurance policy. Even great solar has bad weeks. A generator you haven't tested in months isn't a backup — it's a paperweight. Inverter generators = clean power. Conventional = cheaper but dirtier.",
+        intro: "Your insurance policy. Even great solar has bad weeks. Pick a generator tier, set how many hours a day you'll run it — it charges your battery up to 80%. You NEED an AC charger ($170) or the battery won't charge. Budget that into your battery cost.",
         options: [
-          o("gen_2000", "2000W inverter gen — ~$550", "Champion or Honda. Quiet (53 dB). 0.4 gal/hr. Runs fridge + lights + charges battery.", 550, [], "PROS: Quiet, efficient, clean. CONS: Won't run big tools. Fuel storage needed."),
-          o("gen_3500", "3500W generator — ~$750", "Predator or Champion. Runs well pump, washer, charges fast. 0.6 gal/hr.", 750, [], "PROS: Handles heavy loads. CONS: Heavier, louder, more fuel."),
-          o("gen_charger", "AC battery charger — ~$170", "Victron Blue Smart 30A. Safe charging from generator to battery. Multi-chemistry.", 170, [], "PROS: Controlled, safe charging. CONS: 30A @ 12V = slow charging."),
-          o("gen_autostart", "Auto-start — ~$250", "Magnum ME-AGS-N or Atkinson. Auto-starts gen when battery is low. Stops when charged.", 250, ["upgrade"], "PROS: Fully automatic. CONS: Only for electric-start gens."),
+          o("gen_budget", "Budget 2000W — ~$450", "Conventional. Loud (68dB). 0.5 gal/hr. Charges ~1.6kWh/h into battery via charger.", 450, ["diyfav"], "PROS: Cheapest backup. Gets the job done. CONS: Loud, dirty power, more maintenance.",
+            {budget:{min:450,max:2000,step:50,def:450},choices:[
+              {key:"hours",label:"Runtime per day",opts:[
+                {id:"1",l:"1h/day",e:"~1.6kWh → 80% of a 2kWh battery"},
+                {id:"2",l:"2h/day",e:"~3.2kWh → 80% of a 4kWh battery"},
+                {id:"3",l:"3h/day",e:"~4.8kWh → 80% of a 6kWh battery"},
+                {id:"4",l:"4h/day",e:"~6.4kWh → 80% of an 8kWh battery"},
+              ]}
+            ],output:(v)=>{
+              const h = parseInt(v.hours)||1;
+              const kwh = (1.6*h).toFixed(0);
+              const b80 = (kwh/0.8).toFixed(0);
+              return {fields:[
+                ["Runtime",h+"h/day"],
+                ["Battery 80%","~"+kwh+"kWh (fits ~"+b80+"kWh bank)"],
+                ["Fuel","~"+(h*0.5).toFixed(1)+" gal/day"],
+                ["⚠","Needs AC charger ($170)"],
+              ],spent:450,budget:v._budget};
+            }}),
+          o("gen_quiet", "Quiet 2000W — ~$550", "Silent (53dB), clean power. 0.4 gal/hr. Charges ~1.6kWh/h into battery via charger. Safe for electronics.", 550, [], "PROS: Quiet, efficient, clean power. Safe for electronics. CONS: Won't run big tools. Fuel storage needed.",
+            {budget:{min:550,max:2000,step:50,def:550},choices:[
+              {key:"hours",label:"Runtime per day",opts:[
+                {id:"1",l:"1h/day",e:"~1.6kWh → 80% of a 2kWh battery"},
+                {id:"2",l:"2h/day",e:"~3.2kWh → 80% of a 4kWh battery"},
+                {id:"3",l:"3h/day",e:"~4.8kWh → 80% of a 6kWh battery"},
+                {id:"4",l:"4h/day",e:"~6.4kWh → 80% of an 8kWh battery"},
+              ]}
+            ],output:(v)=>{
+              const h = parseInt(v.hours)||1;
+              const kwh = (1.6*h).toFixed(0);
+              const b80 = (kwh/0.8).toFixed(0);
+              return {fields:[
+                ["Runtime",h+"h/day"],
+                ["Battery 80%","~"+kwh+"kWh (fits ~"+b80+"kWh bank)"],
+                ["Fuel","~"+(h*0.4).toFixed(1)+" gal/day"],
+                ["⚠","Needs AC charger ($170)"],
+              ],spent:550,budget:v._budget};
+            }}),
+          o("gen_heavy", "Heavy-duty 3500W — ~$900", "Runs well pump + charges battery simultaneously. 0.5 gal/hr. Charges ~2.8kWh/h via charger.", 900, ["upgrade"], "PROS: Runs heavy loads + charges simultaneously. CONS: Heavier, more fuel, premium price.",
+            {budget:{min:900,max:3000,step:100,def:900},choices:[
+              {key:"hours",label:"Runtime per day",opts:[
+                {id:"1",l:"1h/day",e:"~2.8kWh → 80% of a 3.5kWh battery"},
+                {id:"2",l:"2h/day",e:"~5.6kWh → 80% of a 7kWh battery"},
+                {id:"3",l:"3h/day",e:"~8.4kWh → 80% of a 10kWh battery"},
+                {id:"4",l:"4h/day",e:"~11.2kWh → 80% of a 14kWh battery"},
+              ]}
+            ],output:(v)=>{
+              const h = parseInt(v.hours)||1;
+              const kwh = (2.8*h).toFixed(0);
+              const b80 = (kwh/0.8).toFixed(0);
+              return {fields:[
+                ["Runtime",h+"h/day"],
+                ["Battery 80%","~"+kwh+"kWh (fits ~"+b80+"kWh bank)"],
+                ["Fuel","~"+(h*0.5).toFixed(1)+" gal/day"],
+                ["⚠","Needs AC charger ($170)"],
+              ],spent:900,budget:v._budget};
+            }}),
+          o("gen_charger", "AC battery charger — ~$170", "REQUIRED to charge your battery from any generator. Without this, the gen only runs loads — your battery stays empty. Budget this into your battery cost.", 170, [], "PROS: Controlled, safe charging. CONS: Adds $170 to any generator setup. 30A @ 12V = slow, plan runtime accordingly."),
+          o("gen_autostart", "Auto-start module — ~$250", "Auto-starts gen when battery hits low-voltage. Stops when charged. Electric-start gens only.", 250, ["upgrade"], "PROS: Fully automatic. CONS: Only for electric-start gens. Adds $250."),
         ],
       },
       // ---- Security & Comms ----
       // ---- Security options (absorbed from Security thematic) ----
       {
-        id: "detect", title: "9 · Security — detect & deter", multi: true,
-        intro: "Half the job is deterrence — they'll skip the place with a barking dog. Stack a few layers.",
-        options: [
-          o("dog", "Watchdog", "Hears & smells trouble before you do. Best low-tech alarm there is.", 100, [], "The best security system ever: a barking dog deters most intruders, alerts you to everything (including fires and wild animals), and costs food and love. Don't underestimate this."),
-          o("motion", "Motion lights", "Cheap PIR floodlights; pair with a chime or message.", 80, [], "Sudden bright light startles intruders and tells YOU someone's approaching. Cheap, low-power, effective. Add a PIR chime inside to hear movement near the house."),
-          o("alarm", "Intrusion alarm sensors", "Pressure/magnetic sensors, bought or DIY.", 120, [], "Magnetic door switches, pressure mats, window break sensors. Wire them to a siren and a notification system. Simple, reliable, low-power."),
-          o("cameras", "Camera system", "From fake blinkers to solar AI cameras streaming to your phone.", 300, ["needsPower"], "Modern solar Reolink/Eufy cameras transmit to your phone over WiFi. AI can distinguish people from animals. Useful for remote monitoring but needs decent internet and power."),
-          o("fiber", "Optical-fiber perimeter", "Vibration on a fiber loop flags movement over a big perimeter. Cheap area cover, no visual.", 250, [], "Bury a fiber optic cable around your perimeter. Vibration from footsteps triggers an alert. Covers a large area for cheap, works in all weather. No false triggers from animals."),
-          o("drone", "Self-launching drone", "Auto-patrol with a speaker — serious deterrent.", 900, [], "A drone that auto-launches, patrols your perimeter, and can speak to intruders. Very effective deterrent but expensive. Worth it for larger homesteads."),
-        ],
-      },
-      {
-        id: "harden", title: "10 · Harden the home", multi: true, optional: true,
-        intro: "Make at least one part of the house genuinely secure.",
-        options: [
-          o("door", "Strong door + earthbag walls", "Earthbag is bullet- & fire-proof; add a heavy door barred inside.", 300, [], "Earthbag walls (stacked bags of subsoil) are bulletproof and fireproof. Add a heavy steel door with interior bar — you now have a safe room. The simplest hardening."),
-          o("saferoom", "Safe room + escape tunnel", "A hardened (often underground) room with a way out.", 600, [], "A dedicated safe room with reinforced walls, ventilation, and an escape tunnel. Costlier but gives you a secure fallback during the worst scenarios."),
-          o("lexan", "Lexan / barred windows", "Polycarbonate or bars on vulnerable openings.", 180, [], "Windows are the weakest point. Lexan polycarbonate is 250x stronger than glass. Steel bars are even stronger but look more 'fortress-like'. Pick based on your threat model."),
-        ],
-      },
-      {
-        id: "fire", title: "11 · Fire safety", multi: true,
+        id: "fire", title: "9 · Fire safety", multi: true,
         intro: "Your DIY electrics are the #1 fire risk, and you're far from any fire brigade. Be over-stocked.",
         options: [
           o("fireball", "Fire-balls (auto extinguishers)", "Sit in the battery cabinet; pop & smother a fire automatically.", 90, ["safety"], "Tennis-ball sized auto-extinguishers. When a fire starts nearby, they pop and release dry chemical. Place one in your battery cabinet and one near the inverter. Cheap fire insurance."),
@@ -358,7 +433,7 @@ const THEMATICS = {
         ],
       },
       {
-        id: "community", title: "12 · Community link", optional: true,
+        id: "community", title: "10 · Community link", optional: true,
         intro: "A neighbour network beats any gadget — security, advice, seeds, extra hands.",
         options: [
           o("radionet", "Radio / mesh neighbour net", "Stay in touch with neighbours for help & check-ins.", 150, [], "A VHF or Meshtastic network connecting your neighbours. Check in daily, share warnings, help each other. Social resilience is the strongest security you can buy."),
@@ -367,30 +442,11 @@ const THEMATICS = {
       },
       // ---- Communications options (absorbed from Communications thematic) ----
       {
-        id: "localcomms", title: "13 · Local / short-range comms", multi: true,
-        intro: "Talk to people on or near the property without any internet.",
-        options: [
-          o("vhf", "VHF radio", "Marine/handheld voice — essential on a boat & between buildings.", 120, [], "Marine VHF is mandatory for boat dwellers. Handheld VHF radios work across a homestead. No infrastructure needed — just two radios on the same channel."),
-          o("gmrs", "GMRS / PMR handhelds", "Cheap walkie-talkies for the homestead & work crews.", 60, [], "Cheap, simple, license-free (in most countries for PMR). Great for coordinating work across the property. ~1-5 km range depending on terrain."),
-          o("mesh", "Meshtastic LoRa mesh", "Tiny solar nodes form a text mesh over km, off-internet.", 150, [], "Solar-powered LoRa radio nodes form a text-messaging mesh. Works completely off-grid, over tens of kilometers. Each node costs ~$30. Brilliant for community networking."),
-        ],
-      },
-      {
-        id: "internet", title: "14 · Internet / long-range comms", multi: true,
+        id: "internet", title: "11 · Internet", multi: true,
         intro: "Your link to income and the world. Starlink is the off-grid game-changer — but it runs 24/7 and eats power.",
         options: [
           o("starlink", "Starlink", "High-speed anywhere. The income enabler — watch the power draw.", 499, ["needsPower"], "True game-changer: 100+ Mbps anywhere with a clear sky. But draws 50-100W continuous — that's 1.2-2.4 kWh/day. Make sure your solar bank can handle the always-on load."),
           o("lte", "4G/LTE router + antenna", "If there's any cell signal, a roof antenna can pull it in cheap.", 200, [], "If you have 1-2 bars on your phone, a $50 roof antenna + $50 router can turn that into usable internet. Much lower power draw than Starlink (~10W). Always worth checking first."),
-          o("hf", "HF / SSB radio", "Long-range voice with no infrastructure at all.", 500, [], "High Frequency radio can reach across continents. No satellites, no towers. Essential for emergency comms when everything else is down. Ham license required in most countries."),
-          o("satmsg", "Satellite messenger", "inReach/PLB — texts & SOS from literally anywhere.", 350, [], "Garmin inReach or Zoleo: two-way text messaging via satellite. Also has an SOS button that alerts emergency services with your GPS coordinates. Mandatory safety gear."),
-        ],
-      },
-      {
-        id: "commspower", title: "15 · Comms power & resilience", optional: true,
-        intro: "Comms are only as reliable as the power behind them.",
-        options: [
-          o("dedicated", "Dedicated solar + battery", "A small separate system so comms survive a main-bank failure.", 300, [], "A small 50W panel + 50Ah battery just for your router and radios. Even if your main system fails, you still have comms. This saves you when everything else is down."),
-          o("budget", "Budget it into main bank", "Account for the 24/7 router/Starlink load in your power plan.", 0, ["needsPower"], "Simply include the comms draw in your main power budget. Works as long as your main system is running. Add 50-100W to your daily load calculation."),
         ],
       },
     ],
@@ -545,17 +601,17 @@ const CARDS = [
   { id: "altcook", sev: "bad", title: "The alternator cooked the pack", color: C.power,
     trigger: (h) => h.has("electricity", "genint", "alternator") && hasLithium(h),
     body: "You belt-charge the LiFePO4 bank off the engine alternator. It pulls hard and never lets up — the alternator overheats and burns out. This exact failure happens in DIY van builds every year.",
-    lesson: "LiFePO4 has huge charge-acceptance: it won't tell the alternator to stop. A 100Ah lithium bank can pull 200A+ from a 120A-rated alternator until it smokes. Use a DC-DC charger (Victron Orion, Renogy) that limits current and has temperature protection." },
+    lesson: "LiFePO4 has huge charge-acceptance: it won't tell the alternator to stop. A 100Ah lithium bank can pull 200A+ from a 120A-rated alternator until it smokes. Use a DC-DC charger that limits current and has temperature protection." },
 
   { id: "deepdischarge", sev: "bad", title: "Bank murdered overnight", color: C.power,
     trigger: (h) => h.has("electricity", "battery", "lead") && !h.has("electricity", "optimize", "shunt"),
     body: "A cloudy stretch, no monitor, and you draw the lead-acid bank flat. A real Saskatchewan off-gridder lost 50% of battery capacity in one winter exactly this way.",
-    lesson: "Lead-acid below 50% DoD causes irreversible sulfation — below 30% and the plates are permanently damaged. Without a shunt you're flying blind. Install a battery monitor (Victron BMV $80) and never discharge below 50% for longevity." },
+    lesson: "Lead-acid below 50% DoD causes irreversible sulfation — below 30% and the plates are permanently damaged. Without a shunt you're flying blind. Install a battery monitor (~$80) and never discharge below 50% for longevity." },
 
   { id: "lifepo4cold", sev: "warn", title: "BMS blocked charging - it's freezing", color: C.power,
     trigger: (h) => hasLithium(h) && COLD.includes(h.climate),
     body: "Winter morning in Montana, sun blazing — but your BMS refuses the charge. LiFePO4 below 0°C cannot be charged without plating lithium metal. The bank sits dead empty in the cold.",
-    lesson: "Real Canadian off-gridders have been stranded by this. Solutions: self-heating batteries (Battle Born heated), keep bank in an insulated/heated enclosure, switch to LTO or sodium-ion which tolerate -20°C, or use a small heating pad powered by a separate low-voltage circuit." },
+    lesson: "Real Canadian off-gridders have been stranded by this. Solutions: self-heating batteries, keep bank in an insulated/heated enclosure, switch to LTO or sodium-ion which tolerate -20°C, or use a small heating pad powered by a separate low-voltage circuit." },
 
   { id: "onesource", sev: "warn", title: "A cloudy week, everything dark", color: C.power,
     trigger: (h) => h.count("electricity", "generate") === 1 && hasSolar(h),
@@ -623,7 +679,7 @@ const CARDS = [
     lesson: "Food and water are one system. Swales catch rainwater and recharge groundwater. Greywater irrigates fruit trees. Mulch 4-6 inches deep cuts evaporation by 70%. A 250sqft garden needs 25+ gal/day in hot weather — plan for it." },
 
   { id: "nohelp", sev: "bad", title: "Break-in, no way to call out", color: C.sec,
-    trigger: (h) => (h.has("electricity", "community", "none") || !h.any("electricity", "community")) && !h.any("electricity", "internet") && !h.any("electricity", "localcomms"),
+    trigger: (h) => (h.has("electricity", "community", "none") || !h.any("electricity", "community")) && !h.any("electricity", "internet"),
     body: "An intrusion at 2am. No radio, no neighbour net, no way to call for help. The nearest town is 45 minutes away. Isolation cuts both ways.",
     lesson: "A real Sierra Nevada cabin was burglarized for $2,400 in batteries — thieves cut a padlock and loaded a truck. Install a cellular security cam, hardened battery box locks, and a Meshtastic LoRa node ($80) for off-grid text communication over kilometers." },
 
@@ -791,330 +847,318 @@ function Tag({ children, bg, fg }) {
   );
 }
 
-/* ---- Improved SceneSVG with trees, mountains, weather per climate/setup ---- */
+/* ---- SceneSVG — premium per-setup illustrations ---- */
 function SceneSVG({ setup, climate, color, season, sel }) {
-  const sky = climate === "boreal" || climate === "alpine" ? "#2A3340"
-    : climate === "arid" ? "#3A2E1F"
-      : climate === "maritime" ? "#26303A" : "#243024";
-  // Seasonal sky tint
-  const seasonTint = season === "spring" ? "rgba(107,191,89,0.08)"
-    : season === "summer" ? "rgba(242,193,78,0.12)"
-    : season === "fall" ? "rgba(201,122,58,0.10)"
-    : season === "winter" ? "rgba(123,170,200,0.10)"
-    : "transparent";
-  const ground = climate === "arid" ? "#5C4326" : climate === "boreal" ? "#3A4450" : "#2E3A26";
-  const groundSeason = season === "winter" ? "#3A3A45"
-    : season === "fall" ? "#3A3526"
-    : season === "spring" ? "#2E3A26"
-    : ground;
+  const sky = climate === "boreal" || climate === "alpine" ? "#1A2230"
+    : climate === "arid" ? "#2C1F10"
+    : climate === "maritime" ? "#1A2530" : "#101A10";
+  const ground = climate === "arid" ? "#4A3420"
+    : climate === "boreal" ? "#2A3340"
+    : water ? "#0D2030"
+    : "#1E2E18";
   const water = setup === "catamaran";
   const isCold = climate === "boreal" || climate === "alpine";
   const isDry = climate === "arid";
   const isTropical = climate === "tropics";
-
-  const snowline = isCold ? 155 : null;
   const mountains = climate === "alpine" || climate === "boreal";
-  const trees = !isDry && !mountains;
-  const palm = isTropical;
-  const cactus = isDry;
   const rain = climate === "maritime" || climate === "tropics";
   const snow = isCold;
-  const sunBeams = isDry || climate === "mediterranean";
+
+  // Panel helper — renders an SVG solar panel at given position/angle
+  const Panel = ({ x, y, w=38, h=22, angle=0 }) => (
+    <g transform={`translate(${x},${y}) rotate(${angle})`} filter="url(#svgGlow)">
+      <rect x="0" y="0" width={w} height={h} rx="2" fill={color} opacity="0.9" />
+      <rect x="1" y="1" width={w-2} height={h-2} rx="1.5" fill="none" stroke={C.ink} strokeWidth="0.3" opacity="0.5" />
+      <line x1={w*0.33} y1="0" x2={w*0.33} y2={h} stroke={C.ink} strokeWidth="0.6" opacity="0.6" />
+      <line x1={w*0.66} y1="0" x2={w*0.66} y2={h} stroke={C.ink} strokeWidth="0.6" opacity="0.6" />
+      <line x1="0" y1={h*0.5} x2={w} y2={h*0.5} stroke={C.ink} strokeWidth="0.6" opacity="0.6" />
+      <rect x="1" y="1" width={w-2} height={h*0.45} rx="1" fill={C.power} opacity="0.08" />
+    </g>
+  );
 
   return (
-    <svg viewBox="0 0 400 220" style={{ width: "100%", height: "100%", display: "block" }}>
+    <svg viewBox="0 0 400 210" style={{ width: "100%", height: "100%", display: "block" }}>
       <defs>
         <linearGradient id="sk" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={sky} />
-          <stop offset="1" stopColor={C.ink} />
+          <stop offset="0%" stopColor={sky} />
+          <stop offset="70%" stopColor={sky} />
+          <stop offset="100%" stopColor={C.ink} />
         </linearGradient>
-        <linearGradient id="sunRays" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={C.power} stopOpacity="0.25" />
-          <stop offset="1" stopColor={C.power} stopOpacity="0" />
+        <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={ground} />
+          <stop offset="100%" stopColor={C.ink} />
         </linearGradient>
-        <linearGradient id="mountGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#3A3344" />
-          <stop offset="1" stopColor="#282231" />
+        <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#1A3A50" />
+          <stop offset="100%" stopColor="#0A1A28" />
         </linearGradient>
+        <filter id="svgGlow">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#000" floodOpacity="0.5" />
+        </filter>
+        <radialGradient id="sunHalo" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor={C.power} stopOpacity="0.4" />
+          <stop offset="60%" stopColor={C.power} stopOpacity="0.1" />
+          <stop offset="100%" stopColor={C.power} stopOpacity="0" />
+        </radialGradient>
       </defs>
 
-      <rect x="0" y="0" width="400" height="220" fill="url(#sk)" />
+      {/* Sky */}
+      <rect x="0" y="0" width="400" height="210" fill="url(#sk)" />
 
-      {/* Weather: rain drops */}
-      {rain && Array.from({ length: 20 }).map((_, i) => (
-        <line key={"rain" + i} x1={10 + (i * 19) % 390} y1={5 + (i * 7) % 50} x2={6 + (i * 19) % 390} y2={10 + (i * 7) % 50} stroke={C.water} strokeWidth="1" opacity="0.5" />
+      {/* Sun + halo */}
+      <circle cx="338" cy="36" r="36" fill="url(#sunHalo)" />
+      <circle cx="338" cy="36" r="16" fill={C.power} opacity="0.92" filter="url(#svgGlow)" />
+      {(isDry || climate === "mediterranean") && [1,2,3,4,5,6,7,8].map(i => {
+        const a = (i * 45) * Math.PI / 180;
+        return <line key={i} x1={338 + Math.cos(a)*20} y1={36 + Math.sin(a)*20}
+          x2={338 + Math.cos(a)*28} y2={36 + Math.sin(a)*28}
+          stroke={C.power} strokeWidth="1.5" opacity="0.3" strokeLinecap="round" />;
+      })}
+
+      {/* Mountains */}
+      {mountains && <>
+        <path d="M0 155 L55 65 L110 155 Z" fill="#22203A" opacity="0.85" />
+        <path d="M75 155 L145 42 L215 155 Z" fill="#1C1A30" opacity="0.9" />
+        <path d="M185 155 L260 55 L335 155 Z" fill="#181628" opacity="0.85" />
+        <path d="M310 155 L360 88 L400 155 Z" fill="#141422" opacity="0.7" />
+        {/* Snow caps */}
+        <path d="M50 73 L55 65 L60 73 Q55 70 50 73 Z" fill={C.bone} opacity="0.9" />
+        <path d="M138 50 L145 42 L152 50 Q145 47 138 50 Z" fill={C.bone} opacity="0.9" />
+        <path d="M253 63 L260 55 L267 63 Q260 60 253 63 Z" fill={C.bone} opacity="0.9" />
+      </>}
+
+      {/* Ground */}
+      <rect x="0" y="155" width="400" height="55" fill="url(#groundGrad)" />
+
+      {/* Water for catamaran */}
+      {water && <>
+        <rect x="0" y="148" width="400" height="62" fill="url(#waterGrad)" />
+        {[0,1,2,3].map(i => (
+          <path key={i} d={`M${i*110} 158 Q${i*110+28} 152 ${i*110+55} 158 T${i*110+110} 158`}
+            fill="none" stroke="#4A8AAA" strokeWidth="1" opacity={0.2 + i*0.05} />
+        ))}
+      </>}
+
+      {/* Rain */}
+      {rain && Array.from({length:24}).map((_,i) => (
+        <line key={"r"+i}
+          x1={12+(i*16)%385} y1={4+(i*9)%55}
+          x2={9+(i*16)%385} y2={11+(i*9)%55}
+          stroke={C.water} strokeWidth="1" opacity="0.3" strokeLinecap="round" />
       ))}
 
-      {/* Weather: snow flakes */}
-      {snow && Array.from({ length: 25 }).map((_, i) => (
-        <circle key={"snow" + i} cx={10 + (i * 17) % 390} cy={3 + (i * 9) % 80} r={1.5} fill={C.bone} opacity={0.4 + (i % 3) * 0.2} />
+      {/* Snow */}
+      {snow && Array.from({length:35}).map((_,i) => (
+        <circle key={"s"+i} cx={6+(i*11)%390} cy={4+(i*6)%85}
+          r={i%3===0 ? 2 : 1.2} fill={C.bone} opacity={0.25+(i%4)*0.1} />
       ))}
 
-      {/* Mountains (alpine/boreal) */}
-      {mountains && (
-        <g>
-          <path d="M0 160 L60 60 L120 160 Z" fill="url(#mountGrad)" opacity="0.7" />
-          <path d="M80 160 L150 40 L220 160 Z" fill="url(#mountGrad)" opacity="0.6" />
-          <path d="M180 160 L260 55 L340 160 Z" fill="url(#mountGrad)" opacity="0.5" />
-          {/* Snowcaps */}
-          <path d="M55 68 L60 60 L65 68 Z" fill={C.bone} opacity="0.8" />
-          <path d="M143 48 L150 40 L157 48 Z" fill={C.bone} opacity="0.8" />
-          <path d="M252 62 L260 55 L268 62 Z" fill={C.bone} opacity="0.8" />
+      {/* === VEGETATION — behind dwelling === */}
+      {/* Tropical palms */}
+      {isTropical && [38, 362].map((cx,i) => (
+        <g key={"palm"+i}>
+          <path d={`M${cx} 155 Q${cx+(i?2:-2)} 125 ${cx+(i?4:-4)} 100`}
+            fill="none" stroke="#3A2E1A" strokeWidth="4" strokeLinecap="round" />
+          <path d={`M${cx+(i?4:-4)} 100 Q${cx+(i?-12:-(-12))} 86 ${cx+(i?-18:-(-18))} 90`}
+            fill="#3A6830" strokeWidth="0" />
+          <path d={`M${cx+(i?4:-4)} 100 Q${cx+(i?16:-(-16))} 85 ${cx+(i?22:-(-22))} 88`}
+            fill="#3A6830" strokeWidth="0" />
+          <path d={`M${cx+(i?4:-4)} 100 Q${cx+(i?2:-2)} 84 ${cx+(i?0:-0)} 88`}
+            fill="#4A7A3A" strokeWidth="0" />
+          <circle cx={cx+(i?2:-2)} cy="102" r="2.5" fill="#3A2A10" />
+          <circle cx={cx+(i?6:-6)} cy="103" r="2" fill="#3A2A10" />
         </g>
-      )}
+      ))}
 
-      {/* Animated sun — moves with seasons (higher in summer, lower in winter) */}
-      <g>
-        <animateTransform attributeName="transform" type="translate"
-          values={season === "winter" ? "0,15" : season === "fall" ? "0,8" : season === "spring" ? "0,3" : "0,0"}
-          dur="4s" repeatCount="indefinite" />
-        <circle cx="320" cy={season === "winter" ? 60 : season === "fall" ? 52 : season === "spring" ? 46 : 42} r="20" fill={C.power} opacity="0.9" />
-      </g>
-
-      {/* Sun rays for arid/mediterranean */}
-      {sunBeams && (
-        <>
-          <circle cx="320" cy="46" r="28" fill="none" stroke={C.power} strokeWidth="1" opacity="0.15" />
-          <circle cx="320" cy="46" r="36" fill="none" stroke={C.power} strokeWidth="0.5" opacity="0.1" />
-          <polygon points="320,10 322,18 318,18" fill={C.power} opacity="0.3" />
-          <polygon points="345,25 348,32 341,30" fill={C.power} opacity="0.3" />
-          <polygon points="295,25 298,30 291,32" fill={C.power} opacity="0.3" />
-          <polygon points="335,60 340,58 338,64" fill={C.power} opacity="0.25" />
-          <polygon points="300,55 297,60 303,58" fill={C.power} opacity="0.25" />
-        </>
-      )}
-
-      {/* Seasonal tint overlay */}
-      {season && season !== "summer" && (
-        <rect x="0" y="0" width="400" height="220" fill={seasonTint} />
-      )}
-
-      {/* ground or sea */}
-      <rect x="0" y="160" width="400" height="60" fill={water ? "#1E3A47" : groundSeason} />
-      {water && <path d="M0 168 Q 50 162 100 168 T 200 168 T 300 168 T 400 168 V220 H0 Z" fill="#27495A" opacity="0.6" />}
-      {water && <path d="M0 175 Q 60 170 120 175 T 240 175 T 360 175 T 400 175" fill="none" stroke="#3A6A7A" strokeWidth="1" opacity="0.4" />}
-
-      {/* Snow cover on ground */}
-      {snowline && (
-        <rect x="0" y={snowline} width="400" height="5" fill={C.bone} opacity="0.3" rx="2" />
-      )}
-      {season === "winter" && !snowline && (
-        <rect x="0" y="158" width="400" height="4" fill={C.bone} opacity="0.2" rx="2" />
-      )}
-
-      {/* Spring flowers */}
-      {season === "spring" && !isDry && (
-        <>
-          {[30, 80, 320, 370, 140, 260].map((cx, i) => (
-            <g key={"flower" + i}>
-              <line x1={cx} y1="162" x2={cx} y2="155" stroke="#4A6A3A" strokeWidth="1" />
-              <circle cx={cx} cy="154" r="2.5" fill={["#E86A6A","#E8C86A","#A86AE8","#E86AA8","#6AE8A8","#E8A86A"][i]} opacity="0.8" />
-            </g>
-          ))}
-        </>
-      )}
-
-      {/* Fall leaves */}
-      {season === "fall" && trees && (
-        <>
-          {[40, 100, 200, 300, 350].map((cx, i) => (
-            <ellipse key={"leaf" + i} cx={cx} cy={130 + i * 8} rx={3} ry={2}
-              fill={["#C97A3A","#B86A2A","#D88A4A","#A85A1A","#E89A5A"][i]} opacity={0.6 + (i % 3) * 0.1}
-              transform={`rotate(${i * 30} ${cx} ${130 + i * 8})`} />
-          ))}
-        </>
-      )}
-
-      {/* structure */}
-      {setup === "catamaran" && (
-        <g>
-          <path d="M150 168 h110 l-14 18 h-82 z" fill="#3A3322" stroke={C.line} />
-          <rect x="170" y="120" width="70" height="48" fill="#2C2618" stroke={C.line} />
-          {/* Mast & sail */}
-          <line x1="205" y1="120" x2="205" y2="70" stroke={C.mute} strokeWidth="2" />
-          <path d="M205 74 l34 40 h-34 z" fill={C.bone} opacity="0.85" />
-          {/* Flag */}
-          <polygon points="205,70 225,75 205,80" fill={C.over} opacity="0.7" />
+      {/* Pine trees */}
+      {!isDry && !mountains && !isTropical && [22, 52, 348, 378].map((cx,i) => (
+        <g key={"pine"+i}>
+          <rect x={cx-2} y="145" width="4" height="12" fill="#2A2218" rx="1" />
+          <polygon points={`${cx},125 ${cx-13},155 ${cx+13},155`} fill="#243820" />
+          <polygon points={`${cx},133 ${cx-9},152 ${cx+9},152`} fill="#2E4828" />
+          <polygon points={`${cx},140 ${cx-6},153 ${cx+6},153`} fill="#384E30" />
         </g>
-      )}
+      ))}
+
+      {/* Cacti */}
+      {isDry && [30, 370].map((cx,i) => (
+        <g key={"cact"+i}>
+          <rect x={cx-4} y="120" width="8" height="35" rx="4" fill="#3A5A28" />
+          <path d={`M${cx-4} 132 Q${cx-16} 130 ${cx-16} 123 Q${cx-10} 120 ${cx-4} 130`} fill="#3A5A28" />
+          <path d={`M${cx+4} 136 Q${cx+16} 134 ${cx+16} 127 Q${cx+10} 124 ${cx+4} 134`} fill="#3A5A28" />
+        </g>
+      ))}
+
+      {/* Ground bushes (non-dry, non-mountain) */}
+      {!isDry && !mountains && [70,100,300,330].map((cx,i) => (
+        <ellipse key={"bush"+i} cx={cx} cy="156" rx={8+(i%2)*3} ry="4" fill="#283820" opacity="0.7" />
+      ))}
+
+      {/* === DWELLING + INTEGRATED PANELS === */}
       {setup === "van" && (
         <g>
-          <rect x="150" y="124" width="110" height="44" rx="6" fill="#2C2618" stroke={C.line} />
-          <rect x="232" y="116" width="28" height="20" fill="#2C2618" stroke={C.line} />
-          <circle cx="172" cy="170" r="9" fill="#181610" stroke={C.mute} />
-          <circle cx="240" cy="170" r="9" fill="#181610" stroke={C.mute} />
-          {/* Roof rack hint */}
-          <line x1="155" y1="124" x2="155" y2="116" stroke={C.mute} strokeWidth="2" opacity="0.5" />
-          <line x1="255" y1="124" x2="255" y2="116" stroke={C.mute} strokeWidth="2" opacity="0.5" />
-          <line x1="155" y1="116" x2="255" y2="116" stroke={C.mute} strokeWidth="2" opacity="0.5" />
+          {/* Van body */}
+          <rect x="130" y="118" width="140" height="40" rx="8" fill="#2A2518" stroke={C.line} strokeWidth="1" filter="url(#softShadow)" />
+          {/* Cab section */}
+          <rect x="232" y="110" width="38" height="22" rx="5" fill="#2A2518" stroke={C.line} strokeWidth="1" />
+          {/* Windshield */}
+          <rect x="236" y="113" width="28" height="14" rx="3" fill="#1A2530" stroke="#3A5060" strokeWidth="0.5" opacity="0.8" />
+          {/* Side windows */}
+          <rect x="145" y="122" width="24" height="14" rx="2" fill="#1A2530" stroke="#3A5060" strokeWidth="0.5" opacity="0.7" />
+          <rect x="180" y="122" width="24" height="14" rx="2" fill="#1A2530" stroke="#3A5060" strokeWidth="0.5" opacity="0.7" />
+          {/* Wheels */}
+          <circle cx="162" cy="160" r="12" fill="#181410" stroke="#3A3220" strokeWidth="2" />
+          <circle cx="162" cy="160" r="6" fill="#242018" />
+          <circle cx="248" cy="160" r="12" fill="#181410" stroke="#3A3220" strokeWidth="2" />
+          <circle cx="248" cy="160" r="6" fill="#242018" />
+          {/* Roof rack */}
+          <rect x="134" y="116" width="132" height="4" rx="1" fill="#3A3020" stroke="#4A4030" strokeWidth="0.5" />
+          <line x1="155" y1="116" x2="155" y2="120" stroke="#4A4030" strokeWidth="1" />
+          <line x1="190" y1="116" x2="190" y2="120" stroke="#4A4030" strokeWidth="1" />
+          <line x1="225" y1="116" x2="225" y2="120" stroke="#4A4030" strokeWidth="1" />
+          {/* Solar panels ON roof rack */}
+          <Panel x="140" y="105" w="44" h="10" angle="-2" />
+          <Panel x="192" y="105" w="44" h="10" angle="-2" />
+          {/* Power wire to battery box below */}
+          <line x1="186" y1="115" x2="186" y2="155" stroke={color} strokeWidth="1.5" strokeDasharray="3,3" opacity="0.6">
+            <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="0.7s" repeatCount="indefinite" />
+          </line>
+          {/* Battery box under van */}
+          <rect x="170" y="155" width="32" height="14" rx="3" fill="#141210" stroke={color} strokeWidth="1" />
+          <rect x="173" y="158" width="9" height="8" rx="1" fill={color} opacity="0.7" />
+          <rect x="185" y="158" width="9" height="8" rx="1" fill={C.mute} opacity="0.4" />
         </g>
       )}
-      {(setup === "stonecabin" || setup === "earthship" || setup === "tinyhouse" || setup === "homestead" || setup === "yurt") && (
+
+      {setup === "catamaran" && (
         <g>
-          {/* Structure body */}
-          <rect x="160" y="120" width="92" height="48" fill="#2C2618" stroke={C.line} />
+          {/* Hull left */}
+          <path d="M100 148 L115 162 L195 162 L200 148 Z" fill="#2A2418" stroke={C.line} strokeWidth="1" />
+          {/* Hull right */}
+          <path d="M200 148 L205 162 L285 162 L300 148 Z" fill="#2A2418" stroke={C.line} strokeWidth="1" />
+          {/* Crossbeam */}
+          <rect x="115" y="140" width="170" height="10" rx="3" fill="#3A3020" stroke={C.line} strokeWidth="0.8" />
+          {/* Main deck/cabin */}
+          <rect x="140" y="115" width="120" height="30" rx="4" fill="#2C2618" stroke={C.line} strokeWidth="1" filter="url(#softShadow)" />
+          {/* Cabin windows */}
+          <rect x="150" y="119" width="18" height="12" rx="2" fill="#1A3040" stroke="#2A5060" strokeWidth="0.5" opacity="0.85" />
+          <rect x="177" y="119" width="18" height="12" rx="2" fill="#1A3040" stroke="#2A5060" strokeWidth="0.5" opacity="0.85" />
+          <rect x="204" y="119" width="18" height="12" rx="2" fill="#1A3040" stroke="#2A5060" strokeWidth="0.5" opacity="0.85" />
+          {/* Mast */}
+          <line x1="200" y1="145" x2="200" y2="72" stroke={C.mute} strokeWidth="2.5" strokeLinecap="round" />
+          {/* Sail */}
+          <path d="M200 76 L200 138 L248 118 Z" fill={C.bone} opacity="0.75" />
+          <path d="M200 80 L200 130 L165 110 Z" fill={C.bone} opacity="0.5" />
+          {/* Solar panels on cabin roof */}
+          <Panel x="145" y="112" w="36" h="8" angle="0" />
+          <Panel x="186" y="112" w="36" h="8" angle="0" />
+          {/* Power wire */}
+          <line x1="200" y1="120" x2="200" y2="140" stroke={color} strokeWidth="1.2" strokeDasharray="3,3" opacity="0.6">
+            <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="0.7s" repeatCount="indefinite" />
+          </line>
+        </g>
+      )}
+
+      {(setup === "stonecabin" || setup === "earthship" || setup === "tinyhouse" || setup === "homestead") && (
+        <g>
+          {/* Foundation */}
+          <rect x="140" y="150" width="120" height="8" rx="2" fill="#222018" />
+          {/* Walls */}
+          <rect x="145" y="110" width="110" height="44" rx="3"
+            fill={setup === "stonecabin" ? "#2E2820" : setup === "earthship" ? "#3A2A18" : "#282018"}
+            stroke={C.line} strokeWidth="1" filter="url(#softShadow)" />
           {/* Roof */}
-          {setup === "yurt"
-            ? <path d="M150 120 q56 -34 112 0 z" fill="#3A3322" stroke={C.line} />
-            : <path d="M152 120 l54 -28 54 28 z" fill="#3A3322" stroke={C.line} />}
+          <path d="M138 112 L200 82 L262 112 Z"
+            fill={setup === "stonecabin" ? "#3A3020" : "#2E2418"}
+            stroke={C.line} strokeWidth="1" />
           {/* Door */}
-          <rect x="198" y="142" width="18" height="26" fill="#181610" />
-          {/* Chimney for cabin */}
-          {setup === "stonecabin" && (
-            <>
-              <rect x="230" y="98" width="8" height="22" fill="#3A3322" />
-              <path d="M231 98 q2 -6 6 0" fill="none" stroke={C.faint} strokeWidth="1.5" opacity="0.6" />
-            </>
-          )}
-          {/* Window for tiny house */}
-          {setup === "tinyhouse" && (
-            <rect x="172" y="132" width="14" height="14" fill="#181610" stroke={C.mute} strokeWidth="0.5" />
-          )}
-          {/* Porch for homestead */}
-          {setup === "homestead" && (
-            <line x1="160" y1="168" x2="160" y2="176" stroke={C.mute} strokeWidth="2" />
-          )}
+          <rect x="187" y="128" width="22" height="26" rx="2" fill="#141210" stroke={C.line} strokeWidth="0.5" />
+          <circle cx="205" cy="142" r="1.5" fill={C.mute} />
+          {/* Windows */}
+          <rect x="153" y="120" width="18" height="14" rx="2" fill="#1A2530" stroke="#3A5060" strokeWidth="0.5" opacity="0.85" />
+          <rect x="229" y="120" width="18" height="14" rx="2" fill="#1A2530" stroke="#3A5060" strokeWidth="0.5" opacity="0.85" />
+          {/* Chimney */}
+          {setup === "stonecabin" && <>
+            <rect x="222" y="86" width="10" height="26" fill="#2E2820" stroke={C.line} strokeWidth="0.5" />
+            <rect x="220" y="83" width="14" height="5" rx="1" fill="#3A3020" />
+          </>}
+          {/* Solar panels on roof slope */}
+          <Panel x="164" y="94" w="32" h="15" angle="-20" />
+          <Panel x="199" y="89" w="32" h="15" angle="-20" />
+          {/* Power wire down wall */}
+          <line x1="200" y1="108" x2="200" y2="120" stroke={color} strokeWidth="1.2" strokeDasharray="2,2" opacity="0.6">
+            <animate attributeName="stroke-dashoffset" from="0" to="-8" dur="0.7s" repeatCount="indefinite" />
+          </line>
+          {/* Battery box on wall */}
+          <rect x="148" y="130" width="28" height="18" rx="3" fill="#141210" stroke={color} strokeWidth="1" />
+          <rect x="151" y="133" width="7" height="10" rx="1" fill={color} opacity="0.7" />
+          <rect x="162" y="133" width="7" height="10" rx="1" fill={C.mute} opacity="0.3" />
         </g>
       )}
 
-      {/* Trees and vegetation */}
-      {trees && (
-        <>
-          {/* Pine trees */}
-          {[20, 45, 365, 385].map((cx, i) => (
-            <g key={"pine" + i}>
-              <rect x={cx - 1.5} y="150" width="3" height="12" fill="#3A3322" />
-              <polygon points={`${cx},140 ${cx - 12},160 ${cx + 12},160`} fill={C.food} opacity="0.7" />
-              <polygon points={`${cx},144 ${cx - 8},158 ${cx + 8},158`} fill={C.food} opacity="0.85" />
-            </g>
+      {setup === "yurt" && (
+        <g>
+          {/* Yurt base */}
+          <ellipse cx="200" cy="155" rx="70" ry="8" fill="#2A2018" opacity="0.6" />
+          {/* Yurt walls */}
+          <path d="M130 150 Q200 120 270 150 Z" fill="#3A3020" stroke={C.line} strokeWidth="1" />
+          <rect x="133" y="142" width="134" height="14" rx="0" fill="#2E2618" stroke={C.line} strokeWidth="0.8" />
+          {/* Crown */}
+          <ellipse cx="200" cy="121" rx="22" ry="6" fill="#3A3020" stroke={C.line} strokeWidth="1" />
+          {/* Door */}
+          <rect x="187" y="136" width="26" height="20" rx="3" fill="#1A1610" stroke={C.line} strokeWidth="0.5" />
+          {/* Lattice pattern on wall */}
+          {[-40,-20,0,20,40].map(dx => (
+            <line key={dx} x1={200+dx-10} y1="142" x2={200+dx+10} y2="155" stroke={C.faint} strokeWidth="0.5" opacity="0.5" />
           ))}
-          {/* Deciduous tree */}
-          <g>
-            <rect x="325" y="140" width="3" height="20" fill="#3A3322" />
-            <circle cx="327" cy="135" r="14" fill={C.food} opacity="0.6" />
-            <circle cx="320" cy="140" r="10" fill={C.food} opacity="0.5" />
-            <circle cx="334" cy="138" r="9" fill={C.food} opacity="0.55" />
+          {/* Solar panels — ground mounted in front */}
+          <g transform="translate(280,130)">
+            <line x1="6" y1="0" x2="6" y2="22" stroke="#3A3020" strokeWidth="2" />
+            <line x1="22" y1="0" x2="22" y2="22" stroke="#3A3020" strokeWidth="2" />
+            <Panel x="0" y="0" w="28" h="16" angle="-15" />
           </g>
-        </>
-      )}
-
-      {/* Palm trees for tropics */}
-      {palm && (
-        <>
-          {[30, 375].map((cx, i) => (
-            <g key={"palm" + i}>
-              <path d={`M${cx} 150 Q${cx - 3} 130 ${cx} 110`} fill="none" stroke="#3A3322" strokeWidth="3" />
-              <path d={`M${cx} 110 Q${cx - 15} 100 ${cx - 18} 105 Q${cx - 10} 108 ${cx} 110`} fill={C.food} opacity="0.8" />
-              <path d={`M${cx} 110 Q${cx + 15} 100 ${cx + 18} 105 Q${cx + 10} 108 ${cx} 110`} fill={C.food} opacity="0.8" />
-              <path d={`M${cx} 110 Q${cx - 5} 95 ${cx - 8} 100 Q${cx - 3} 104 ${cx} 110`} fill={C.food} opacity="0.75" />
-              <path d={`M${cx} 110 Q${cx + 5} 95 ${cx + 8} 100 Q${cx + 3} 104 ${cx} 110`} fill={C.food} opacity="0.75" />
-              {/* Coconuts */}
-              <circle cx={cx - 2} cy={112} r={2} fill="#5C4326" />
-              <circle cx={cx + 2} cy={113} r={2} fill="#5C4326" />
-            </g>
-          ))}
-        </>
-      )}
-
-      {/* Cacti for arid */}
-      {cactus && (
-        <>
-          {[25, 378].map((cx, i) => (
-            <g key={"cactus" + i}>
-              <rect x={cx - 3} y="130" width="6" height="30" rx="3" fill="#4A6A3A" />
-              <path d={`M${cx - 3} 140 Q${cx - 12} 138 ${cx - 12} 133 Q${cx - 8} 130 ${cx - 3} 138`} fill="#4A6A3A" />
-              <path d={`M${cx + 3} 142 Q${cx + 12} 140 ${cx + 12} 135 Q${cx + 8} 132 ${cx + 3} 140`} fill="#4A6A3A" />
-            </g>
-          ))}
-          {/* Small desert bushes */}
-          <ellipse cx="350" cy="155" rx="6" ry="3" fill="#5A5A30" opacity="0.6" />
-          <ellipse cx="60" cy="158" rx="5" ry="3" fill="#5A5A30" opacity="0.6" />
-        </>
-      )}
-
-      {/* Bushes for temperate/mediterranean */}
-      {(climate === "temperate" || climate === "mediterranean") && (
-        <>
-          <ellipse cx="40" cy="158" rx="10" ry="4" fill={C.food} opacity="0.5" />
-          <ellipse cx="360" cy="156" rx="8" ry="3" fill={C.food} opacity="0.4" />
-          <ellipse cx="90" cy="160" rx="6" ry="2" fill={C.food} opacity="0.3" />
-          <ellipse cx="310" cy="160" rx="7" ry="3" fill={C.food} opacity="0.35" />
-        </>
-      )}
-
-      {/* Solar panels */}
-      <g stroke={C.ink} strokeWidth="1">
-        <g transform="translate(70,150) rotate(-12)">
-          <rect x="0" y="0" width="54" height="30" fill={color} opacity="0.85" />
-          <line x1="18" y1="0" x2="18" y2="30" /><line x1="36" y1="0" x2="36" y2="30" />
-          <line x1="0" y1="15" x2="54" y2="15" />
-        </g>
-        <g transform="translate(290,150) rotate(12)">
-          <rect x="0" y="0" width="54" height="30" fill={color} opacity="0.85" />
-          <line x1="18" y1="0" x2="18" y2="30" /><line x1="36" y1="0" x2="36" y2="30" />
-          <line x1="0" y1="15" x2="54" y2="15" />
-        </g>
-      </g>
-      {/* Starlink dish (if user selected comms) */}
-      {sel && (sel.electricity?.internet?.includes("starlink") || sel.electricity?.internet === "starlink") && (
-        <g transform="translate(38,110)">
-          <rect x="0" y="0" width="32" height="6" rx="2" fill="#2A2A2A" stroke={C.mute} strokeWidth="0.5" />
-          <line x1="16" y1="6" x2="16" y2="18" stroke={C.mute} strokeWidth="1" />
-          <rect x="8" y="18" width="16" height="10" rx="2" fill="#1A1A1A" stroke={C.mute} strokeWidth="0.5" />
-        </g>
-      )}
-
-      {/* LTE/cell antenna */}
-      {sel && (sel.electricity?.internet?.includes("lte") || sel.electricity?.internet === "lte") && (
-        <g transform="translate(350,85)">
-          <line x1="0" y1="0" x2="0" y2="25" stroke={C.mute} strokeWidth="1.5" />
-          <line x1="0" y1="0" x2="6" y2="5" stroke={C.mute} strokeWidth="1" />
-          <line x1="0" y1="4" x2="6" y2="9" stroke={C.mute} strokeWidth="1" />
-          <line x1="0" y1="8" x2="6" y2="13" stroke={C.mute} strokeWidth="1" />
-          <rect x="-3" y="25" width="6" height="6" rx="1" fill="#1A1A1A" stroke={C.mute} strokeWidth="0.5" />
-        </g>
-      )}
-
-      {/* Security cameras — count based on detection choices */}
-      {sel && (() => {
-        const detect = sel.electricity?.detect || [];
-        const ids = Array.isArray(detect) ? detect : [detect];
-        const hasCameras = ids.includes("cameras");
-        const hasMotion = ids.includes("motion");
-        const hasFiber = ids.includes("fiber");
-        const hasDrone = ids.includes("drone");
-        let camCount = hasCameras ? 3 : 0;
-        if (hasFiber) camCount += 1;
-        if (hasDrone) camCount += 1;
-        if (hasMotion && camCount < 3) camCount = Math.max(camCount, 1);
-        if (camCount === 0) return null;
-        const positions = [[260,95], [320,90], [30,100], [370,100], [80,105], [180,100], [340,108], [130,95], [50,95]];
-        const count = Math.min(camCount, 9);
-        return (
-          <g>
-            {positions.slice(0, count).map(([cx, cy], i) => (
-              <g key={"cam" + i}>
-                <rect x={cx-3} y={cy-2} width="6" height="8" rx="1" fill="#1A1A1A" stroke={C.mute} strokeWidth="0.5" />
-                <circle cx={cx} cy={cy-3} r="2.5" fill="#2A2A2A" stroke={C.over} strokeWidth="0.5" />
-                <line x1={cx} y1={cy+6} x2={cx} y2={cy+12} stroke={C.mute} strokeWidth="0.5" />
-                <circle cx={cx} cy={cy-3} r="1" fill={C.over} opacity={0.6 + (i % 3) * 0.2}>
-                  <animate attributeName="opacity" values="0.3;1;0.3" dur={1.5 + i * 0.3 + "s"} repeatCount="indefinite" />
-                </circle>
-              </g>
-            ))}
+          <g transform="translate(310,130)">
+            <line x1="6" y1="0" x2="6" y2="22" stroke="#3A3020" strokeWidth="2" />
+            <line x1="22" y1="0" x2="22" y2="22" stroke="#3A3020" strokeWidth="2" />
+            <Panel x="0" y="0" w="28" h="16" angle="-15" />
           </g>
-        );
-      })()}
+        </g>
+      )}
 
-      {/* Equipment legend at bottom */}
-      <text x="200" y="210" textAnchor="middle" fill={C.faint} style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: 1 }}>
-        SCENE · {climate.toUpperCase()} / {setup.toUpperCase()}
+      {/* Starlink dish — on structure */}
+      {sel && (Array.isArray(sel.electricity?.internet) ? sel.electricity.internet.includes("starlink") : sel.electricity?.internet === "starlink") && (
+        <g transform={setup==="van" ? "translate(268,108)" : "translate(264,100)"}>
+          <line x1="5" y1="0" x2="5" y2="12" stroke={C.mute} strokeWidth="1.2" />
+          <rect x="0" y="0" width="10" height="3" rx="1.5" fill="#2A2A2A" stroke={C.mute} strokeWidth="0.5" />
+          <rect x="2" y="3" width="6" height="5" rx="1" fill="#1A1A1A" stroke={C.mute} strokeWidth="0.3" />
+        </g>
+      )}
+
+      {/* Wind turbine */}
+      {sel && (Array.isArray(sel.electricity?.generate) ? sel.electricity.generate.includes("wind") : sel.electricity?.generate === "wind") && (
+        <g transform="translate(80, 110)">
+          <line x1="0" y1="0" x2="0" y2="45" stroke="#3A3020" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="0" cy="0" r="3" fill="#2A2818" stroke={C.mute} strokeWidth="0.8" />
+          <g>
+            <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="2.5s" repeatCount="indefinite" />
+            <rect x="-1.5" y="-20" width="3" height="20" rx="1.5" fill={C.bone} opacity="0.85" />
+            <rect x="-1.5" y="0" width="3" height="20" rx="1.5" fill={C.bone} opacity="0.85" transform="rotate(120)" />
+            <rect x="-1.5" y="0" width="3" height="20" rx="1.5" fill={C.bone} opacity="0.85" transform="rotate(240)" />
+          </g>
+        </g>
+      )}
+
+      {/* Scene label */}
+      <text x="200" y="206" textAnchor="middle" fill={C.faint} fontFamily="monospace" fontSize="8" letterSpacing="1.5" opacity="0.7">
+        {climate?.toUpperCase()} · {setup?.toUpperCase()}
       </text>
     </svg>
   );
 }
-
-/* ---- Generic Configurator: budget slider + choices + output box ---- */
 /* Auto-generates a config for any option that doesn't have a custom one */
 function autoConfig(op, tier) {
   const basePrice = op.p || 500;
@@ -1161,10 +1205,26 @@ function ConfigPanel({ op, cfg, setCfg, tier, color, remainingBudget, globalBudg
   const v = { ...defaults, ...vals, _budget: vals._budget || c.budget.def };
 
   const update = (key, val) => {
-    setCfg((prev) => ({ ...(prev || {}), [key]: val }));
+    setCfg((prev) => {
+      const next = { ...(prev || {}), [key]: val };
+      if (key !== '_budget' && c.output) {
+        // Auto-set budget to match actual cost when choices change
+        const testDefaults = {};
+        (c.choices || []).forEach((row) => { testDefaults[row.key] = row.opts[0].id; });
+        const testV = { ...testDefaults, ...next, _budget: c.budget.def };
+        const testResult = c.output(testV);
+        const tMult = TIERS[tier]?.mult || 1;
+        const newCost = Math.round((testResult.spent || 0) * tMult);
+        next._budget = Math.max(c.budget.min, Math.min(c.budget.max, newCost || c.budget.def));
+      }
+      return next;
+    });
   };
 
   const result = c.output ? c.output(v) : { fields: [], spent: 0, budget: v._budget };
+  const tierMult = TIERS[tier]?.mult || 1;
+  const adjSpent = Math.round((result.spent || 0) * tierMult);
+  const adjBudget = Math.round((result.budget || 0) * tierMult);
 
   const remainingBudgetVal = remainingBudget !== undefined ? remainingBudget : 0;
 
@@ -1208,17 +1268,119 @@ function ConfigPanel({ op, cfg, setCfg, tier, color, remainingBudget, globalBudg
             ))}
           </div>
           <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 6, paddingTop: 4, display: "flex", justifyContent: "space-between", fontFamily: FONT_MONO, fontSize: 10 }}>
-            <span style={{ color: C.mute }}>${(result.budget || 0).toLocaleString()} budget</span>
-            <span style={{ color }}>${(result.spent || 0).toLocaleString()} spent</span>
-            {(result.budget && result.spent && result.budget > result.spent) && <span style={{ color: C.ok }}>${(result.budget - result.spent).toLocaleString()} left</span>}
-            {(result.budget && result.spent && result.budget < result.spent) && <span style={{ color: C.over }}>${(result.spent - result.budget).toLocaleString()} over</span>}
+            <span style={{ color: C.mute }}>${adjBudget.toLocaleString()} budget</span>
+            <span style={{ color }}>${adjSpent.toLocaleString()} spent</span>
+            {(adjBudget && adjSpent && adjBudget > adjSpent) && <span style={{ color: C.ok }}>${(adjBudget - adjSpent).toLocaleString()} left</span>}
+            {(adjBudget && adjSpent && adjBudget < adjSpent) && <span style={{ color: C.over }}>${(adjSpent - adjBudget).toLocaleString()} over</span>}
           </div>
           {/* Feature 3: Budget cap warning */}
-          {result.spent > 0 && remainingBudgetVal < result.spent && (
+          {adjSpent > 0 && remainingBudgetVal < adjSpent && (
             <div style={{ marginTop: 8, padding: "6px 10px", background: C.over + "22", border: `1px solid ${C.over}44`, borderRadius: 6, fontFamily: FONT_MONO, fontSize: 10, color: C.over, textAlign: "center" }}>
-              ⚠️ ${(result.spent - remainingBudgetVal).toLocaleString()} over your ${(globalBudget || remainingBudgetVal + result.spent).toLocaleString()} budget
+              ⚠️ ${(adjSpent - remainingBudgetVal).toLocaleString()} over your ${(globalBudget || remainingBudgetVal + adjSpent).toLocaleString()} budget
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------- POWER INSIGHT --- */
+function PowerInsight({ cfg, sel, H, tier, price, getOptionSpent }) {
+  const elec = sel.electricity || {};
+  const hasSolar = elec.generate && (Array.isArray(elec.generate) ? elec.generate.some(id => id.startsWith('panel')) : elec.generate?.startsWith('panel'));
+  const hasBattery = elec.battery;
+  const hasGen = elec.generate && (Array.isArray(elec.generate) ? elec.generate.includes('genset') : elec.generate === 'genset');
+  const hasDIY = elec.battery === 'lifepo4diy';
+  const hasDropIn = elec.battery === 'lifepo4drop';
+  const voltage = elec.voltage === 'v48' ? 48 : elec.voltage === 'v24' ? 24 : 12;
+  
+  // Calculate daily load from selected needs
+  let dailyWh = 0;
+  const needs = elec.needs || [];
+  const needIds = Array.isArray(needs) ? needs : needs ? [needs] : [];
+  needIds.forEach(id => { dailyWh += (LOAD_WH[id] || 0); });
+  if (dailyWh === 0) dailyWh = 2000; // default estimate
+
+  const sh = SUN_HOURS[cfg.climate] || 4.5;
+  
+  // Battery math
+  let battKwh = 0, battAh = 0, battCyc = 0, battCost = 0;
+  if (hasDIY) {
+    battAh = 280; battKwh = battAh * 3.2 * 4 * 0.95 / 1000; // 4S 280Ah
+    battCyc = 4000; battCost = 500;
+  } else if (hasDropIn) {
+    battAh = 100; battKwh = battAh * 12.8 / 1000; battCyc = 3500; battCost = 350;
+  } else if (hasBattery === 'agm') {
+    battAh = 100; battKwh = battAh * 12 * 0.5 / 1000; battCyc = 600; battCost = 200;
+  } else if (hasBattery === 'lead') {
+    battAh = 100; battKwh = battAh * 12 * 0.5 / 1000; battCyc = 500; battCost = 130;
+  }
+
+  const autonomyDays = battKwh > 0 ? (battKwh * 1000 / dailyWh).toFixed(1) : 0;
+  const panelsNeeded = Math.ceil(dailyWh / (100 * sh * 0.75));
+  const solarCoverage = hasSolar ? Math.min(100, Math.round((panelsNeeded * 100 * sh * 0.75 / dailyWh) * 100)) : 0;
+  
+  // Generator math
+  const genDailyKwh = hasGen ? (2000 * 0.4 / 1000) : 0; // ~2kW gen at 40% load
+  const genBatterySavings = hasGen && battKwh > 0 ? Math.round(battKwh * 0.6 * 1000) : 0;
+
+  return (
+    <div style={{ background: C.panel, border: `1px solid ${C.power}`, borderRadius: 12, padding: 16, marginBottom: 12 }}>
+      <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 16, color: C.power, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+        ⚡ Power Insight — Climate-Aware Math
+      </div>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
+        <div>
+          <div style={{ color: C.mute, fontSize: 10, marginBottom: 2 }}>PEAK SUN (worst month)</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: C.power }}>{sh} h/day</div>
+          <div style={{ color: C.mute, fontSize: 10 }}>{cfg.climate ? CLIMATES.find(c=>c.id===cfg.climate)?.name : 'No climate selected'}</div>
+        </div>
+        <div>
+          <div style={{ color: C.mute, fontSize: 10, marginBottom: 2 }}>ESTIMATED DAILY LOAD</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: C.power }}>{dailyWh.toLocaleString()} Wh</div>
+          <div style={{ color: C.mute, fontSize: 10 }}>{needIds.length} appliances selected</div>
+        </div>
+        <div>
+          <div style={{ color: C.mute, fontSize: 10, marginBottom: 2 }}>PANELS NEEDED (100W)</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: panelsNeeded <= 6 ? C.ok : panelsNeeded <= 12 ? C.amber : C.over }}>{panelsNeeded} panels</div>
+          <div style={{ color: C.mute, fontSize: 10 }}>at {sh}h sun, 0.75 derate</div>
+        </div>
+        <div>
+          <div style={{ color: C.mute, fontSize: 10, marginBottom: 2 }}>BATTERY AUTONOMY</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 18, color: autonomyDays >= 2 ? C.ok : C.amber }}>{battKwh > 0 ? autonomyDays + ' days' : 'No battery'}</div>
+          <div style={{ color: C.mute, fontSize: 10 }}>{battKwh > 0 ? battKwh.toFixed(1) + ' kWh · ' + (battCyc/1000).toFixed(0) + 'k cycles' : 'Select a battery above'}</div>
+        </div>
+      </div>
+
+      {hasGen && (
+        <div style={{ marginTop: 12, padding: 12, background: C.ink, borderLeft: `3px solid ${C.power}`, borderRadius: 6, fontSize: 12.5, color: C.mute, lineHeight: 1.6 }}>
+          <b style={{ color: C.power }}>⚡ Generator economics:</b> A 2000W generator running 2h/day produces ~{genDailyKwh.toFixed(1)} kWh — about {(genDailyKwh*1000/dailyWh*100).toFixed(0)}% of your daily load. 
+          This means you can reduce battery capacity by ~60% — saving roughly ${genBatterySavings.toLocaleString()} in batteries. 
+          <b style={{ color: C.ok }}>The generator pays for itself.</b>
+        </div>
+      )}
+
+      {(hasDIY || hasDropIn) && (
+        <div style={{ marginTop: 12, padding: 12, background: C.ink, borderLeft: `3px solid ${C.ok}`, borderRadius: 6, fontSize: 12.5, lineHeight: 1.6 }}>
+          <div style={{ display: "flex", gap: 20 }}>
+            <div style={{ flex: 1 }}>
+              <b style={{ color: C.ok }}>🛠️ DIY LiFePO4:</b> 4× EVE LF280K cells (3.2V, 280Ah each) + JK BMS = ~3.4 kWh for ~$500. 40% cheaper than drop-in. Active balancing. Serviceable. 200A charge rate.
+            </div>
+            <div style={{ flex: 1 }}>
+              <b style={{ color: C.amber }}>📦 Drop-In LiFePO4:</b> 100Ah pre-built = ~1.28 kWh for ~$350. Plug-and-play but ~100A charge limit and unknown BMS internals.
+            </div>
+          </div>
+          <div style={{ marginTop: 6, color: C.ok, fontWeight: "bold", textAlign: "center" }}>
+            DIY saves ~${(350*3 - 500).toLocaleString()} for equivalent 3× drop-in capacity — and handles 200A+ generator charging
+          </div>
+        </div>
+      )}
+
+      {cfg.climate && sh < 1.5 && (
+        <div style={{ marginTop: 12, padding: 10, background: C.ink, borderLeft: `3px solid ${C.over}`, borderRadius: 6, fontSize: 12, color: C.over }}>
+          ⚠ <b>Warning:</b> {sh} peak sun hours is very low. A generator is practically required for this climate. Expect to run it daily during the dark season.
         </div>
       )}
     </div>
@@ -1259,7 +1421,7 @@ export default function App() {
     (ac.choices || []).forEach((row) => { defaults[row.key] = row.opts[0].id; });
     const fullV = { ...defaults, ...v, _budget: v._budget || ac.budget.def };
     const r = ac.output ? ac.output(fullV) : { spent: 0 };
-    return r.spent || price(op);
+    return Math.round((r.spent || 0) * tier.mult) || price(op);
   }
 
   const spent = useMemo(() => {
@@ -1456,7 +1618,7 @@ export default function App() {
       battery: "lifepo4_100ah", inverter: "inv_2000",
       wiring: ["pv_wire","busbar","breakers","monitor"], backup: ["gen_2000"],
       detect: ["dog", "motion"], fire: ["fireball"],
-      localcomms: ["vhf"], internet: ["starlink"],
+      internet: ["starlink"],
     };
     s.water = {
       collect: ["rain", "streambox"], move: "gravity", store: "poly",
@@ -1623,8 +1785,20 @@ export default function App() {
     return shell(
       <div>
         <div style={{ textAlign: "center", marginTop: 8, marginBottom: 20 }}>
-          <img src="/ogx-simulator/logo.png" alt="OGX Logo"
-            style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", marginBottom: 8, border: `2px solid ${C.amber}` }} />
+          {/* OGX Logo — inline SVG */}
+          <svg width="80" height="80" viewBox="0 0 80 80" style={{ marginBottom: 8 }}>
+            <defs>
+              <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={C.amber} />
+                <stop offset="100%" stopColor={C.amberDeep} />
+              </linearGradient>
+            </defs>
+            <rect x="2" y="2" width="76" height="76" rx="16" fill={C.panel} stroke="url(#logoGrad)" strokeWidth="2.5" />
+            <text x="40" y="38" textAnchor="middle" fill="url(#logoGrad)" fontFamily={FONT_DISPLAY} fontWeight="700" fontSize="30" letterSpacing="2">OG</text>
+            <text x="40" y="58" textAnchor="middle" fill={C.mute} fontFamily={FONT_MONO} fontSize="11" letterSpacing="4">EXODUS</text>
+            {/* Lightning bolt accent */}
+            <path d="M44 18 L34 36 L40 36 L32 54 L50 34 L42 34 Z" fill={C.amber} opacity="0.6" />
+          </svg>
           <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: 4, color: C.amber }}>OG · EXODUS</div>
           <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 40, letterSpacing: 1, margin: "6px 0", textTransform: "uppercase" }}>
             Welcome to the <span style={{ color: C.amber }}>OGX</span> Simulation
@@ -1857,23 +2031,43 @@ export default function App() {
 
         {ledger()}
 
-        {th.steps.map((st) => {
+        {/* ── PREMIUM INTRO ── */}
+        <ElectricityIntro color={th.color} />
+
+        {/* ── STEP PROGRESS TRACKER ── */}
+        <StepProgress th={th} tk={tk} H={H} sel={sel} color={th.color} />
+
+        {/* ── LIVE SYSTEM SNAPSHOT ── */}
+        <SystemSnapshot H={H} sel={sel} cfg={cfg} color={th.color} />
+
+        {th.steps.map((st, stepIdx) => {
           const relevant = !st.relevant || st.relevant(H);
+          const completed = relevant && stepDone(tk, st, sel);
           if (!relevant) {
             return (
-              <div key={st.id} style={{ opacity: 0.5, background: C.panel, border: `1px dashed ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 10 }}>
-                <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 15 }}>{st.title}</div>
-                <div style={{ color: C.mute, fontSize: 12, marginTop: 2 }}>Not needed for your earlier choices — skipped.</div>
+              <div key={st.id} style={{ opacity: 0.45, background: C.panel, border: `1px dashed ${C.line}`, borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 15, color: C.mute }}>⊘ {st.title}</div>
+                <div style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>Not needed for your earlier choices — skipped.</div>
               </div>
             );
           }
           const infoOpen = openStepInfo[tk + st.id];
           return (
-            <div key={st.id} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 17 }}>
-                  {st.title}{" "}
-                  {st.multi && <Tag bg={C.panel2} fg={C.mute}>pick any</Tag>}
+            <div key={st.id} style={{
+              background: completed ? C.panel : C.panel,
+              border: `1px solid ${completed ? th.color + "55" : C.line}`,
+              borderLeft: completed ? `4px solid ${th.color}` : `1px solid ${C.line}`,
+              borderRadius: 12, padding: 14, marginBottom: 12,
+              transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+              boxShadow: completed ? `0 0 0 transparent` : "none",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <StepBadge n={stepIdx + 1} done={completed} color={th.color} />
+                  <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 17, color: completed ? th.color : C.bone }}>
+                    {st.title}
+                  </div>
+                  {st.multi && <Tag bg={completed ? th.color + "22" : C.panel2} fg={completed ? th.color : C.mute}>pick any</Tag>}
                   {st.optional && !st.multi && <Tag bg={C.panel2} fg={C.mute}>optional</Tag>}
                 </div>
                 <button onClick={() => setOpenStepInfo((s) => ({ ...s, [tk + st.id]: !infoOpen }))}
@@ -1882,55 +2076,50 @@ export default function App() {
                 </button>
               </div>
               {infoOpen && (
-                <div style={{ background: C.ink, borderLeft: `3px solid ${th.color}`, borderRadius: 6, padding: 10, margin: "8px 0", fontSize: 12.5, color: C.mute, lineHeight: 1.5 }}>
+                <div style={{ background: C.ink, borderLeft: `3px solid ${th.color}`, borderRadius: 6, padding: 10, margin: "6px 0 10px", fontSize: 12.5, color: C.mute, lineHeight: 1.5 }}>
                   {st.intro}
                 </div>
               )}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(1,1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 8 }}>
                 {st.options.map((op) => {
                   const on = H.has(tk, st.id, op.id);
                   const infoKey = tk + "-" + st.id + "-" + op.id;
                   const showWhy = optionInfo[infoKey];
+                  const opPrice = on ? getOptionSpent(op) : price(op);
                   return (
                     <div key={op.id} style={{ position: "relative" }}>
                       <button onClick={() => toggle(tk, st, op.id)} className="ogx-hover"
                         style={{
-                          textAlign: "left", width: "100%", background: on ? C.panel2 : C.ink,
-                          border: `1px solid ${on ? th.color : C.line}`, borderRadius: 10, padding: 11, cursor: "pointer", color: C.bone, position: "relative",
+                          textAlign: "left", width: "100%", background: on ? th.color + "12" : C.ink,
+                          border: `1px solid ${on ? th.color : C.line}`, borderRadius: 10, padding: "10px 12px",
+                          cursor: "pointer", color: C.bone, position: "relative",
+                          transition: "all 0.15s ease",
                         }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
-                            {op.name}
-                            {/* Why-this option - appears on hover */}
-                            {op.why && (
-                              <span onMouseEnter={() => setOptionInfo((s) => ({ ...s, [infoKey]: true }))}
-                                onMouseLeave={() => setOptionInfo((s) => ({ ...s, [infoKey]: false }))}
-                                style={{ display: "inline-flex", alignItems: "center", cursor: "help" }}
-                                title="Pros & Cons">
-                                <HelpCircle size={14} color={showWhy ? th.color : C.faint} style={{ verticalAlign: "-1px" }} />
-                              </span>
-                            )}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 4 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13.5, display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                            <span style={{ fontSize: 16 }}>{OPTION_EMOJI[op.id] || op.emoji || "⚡"}</span>
+                            <span style={{ color: on ? th.color : C.bone }}>{op.name.split(" — ")[0]}</span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: on ? th.color : C.amber }}>
-                              ${(on ? getOptionSpent(op) : price(op)).toLocaleString()}
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                            <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: on ? th.color : C.amber, fontWeight: 600 }}>
+                              ${opPrice.toLocaleString()}
                             </span>
-                            {on ? <Check size={16} color={th.color} /> : <ShoppingCart size={14} color={C.faint} />}
+                            {on ? <Check size={16} color={th.color} /> : <ShoppingCart size={13} color={C.faint} />}
                           </div>
                         </div>
-                        <div style={{ color: C.mute, fontSize: 11.5, marginTop: 4, lineHeight: 1.4 }}>{op.blurb}</div>
+                        <div style={{ color: C.mute, fontSize: 11, lineHeight: 1.35 }}>{op.blurb.split(".")[0]}.</div>
                         {op.tags.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 5 }}>
                             {op.tags.map((t) => (
                               <Tag key={t} bg={C.ink}
-                                fg={t === "risk" ? C.over : t === "safety" ? C.ok : t === "diyfav" ? C.amber : C.mute}>
+                                fg={t === "risk" ? C.over : t === "safety" ? C.ok : t === "diyfav" ? C.amber : t === "upgrade" ? th.color : C.mute}>
                                 {tagLabel(t)}
                               </Tag>
                             ))}
                           </div>
                         )}
                       </button>
-                      {/* Configurator — outside the button so sliders work */}
+                      {/* Configurator */}
                       {on && (
                         <div style={{ background: C.ink, border: `1px solid ${th.color}`, borderTop: "none", borderRadius: "0 0 10px 10px", padding: "8px 11px 11px" }}>
                           <ConfigPanel op={op} cfg={cfgValues[op.id]} setCfg={(fn) => {
@@ -1939,35 +2128,14 @@ export default function App() {
                           }} tier={tier} color={th.color} remainingBudget={cfg.budget - spent} globalBudget={cfg.budget} />
                         </div>
                       )}
-                      {/* Educational "why choose this" popover */}
+                      {/* PROS/CONS popover */}
                       {showWhy && op.why && (
                         <div style={{
                           position: "absolute", left: 0, right: 0, top: "100%", marginTop: 4, zIndex: 10,
                           background: C.ink, border: `1px solid ${th.color}`, borderRadius: 10, padding: 10,
-                          fontSize: 12.5, lineHeight: 1.5, color: C.bone,
+                          fontSize: 12, lineHeight: 1.5, color: C.bone,
                           animation: "loadPulse 0.3s ease",
                         }}>
-                          {/* Equipment illustration for charge controller options */}
-                          {(op.id === "pwm" || op.id === "mppt" || op.id === "mpptlith" || op.id === "split") && (
-                            <div style={{ textAlign: "center", marginBottom: 8 }}>
-                              <svg width="100" height="70" viewBox="0 0 100 70">
-                                <rect x="25" y="5" width="50" height="50" rx="4" fill="#1A1A1A" stroke={C.power} strokeWidth="1.2" />
-                                <rect x="32" y="12" width="36" height="16" rx="2" fill="#0A2A0A" opacity="0.95" />
-                                <line x1="36" y1="18" x2="56" y2="18" stroke="#3AFF3A" strokeWidth="0.8" opacity="0.8" />
-                                <line x1="36" y1="22" x2="48" y2="22" stroke="#3AFF3A" strokeWidth="0.8" opacity="0.5" />
-                                <circle cx="33" cy="36" r="3" fill="#3AFF3A" opacity="0.9">
-                                  <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" />
-                                </circle>
-                                <circle cx="43" cy="36" r="3" fill={C.power} opacity="0.7" />
-                                <circle cx="53" cy="36" r="3" fill="#3AFF3A" opacity="0.5" />
-                                <line x1="28" y1="46" x2="72" y2="46" stroke="#2A2A2A" strokeWidth="0.8" />
-                                <line x1="28" y1="50" x2="72" y2="50" stroke="#2A2A2A" strokeWidth="0.8" />
-                                <line x1="25" y1="12" x2="5" y2="0" stroke={C.power} strokeWidth="1" opacity="0.5" />
-                                <line x1="75" y1="20" x2="95" y2="10" stroke={C.power} strokeWidth="1" opacity="0.5" />
-                                <text x="50" y="65" textAnchor="middle" fill={C.mute} style={{ fontFamily: "monospace", fontSize: 8, letterSpacing: 1 }}>CHARGE CONTROLLER</text>
-                              </svg>
-                            </div>
-                          )}
                           <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
                             <div style={{ flex: 1 }}>
                               <span style={{ fontFamily: FONT_MONO, fontSize: 8, color: C.ok, letterSpacing: 1, textTransform: "uppercase" }}>PROS</span>
@@ -1989,6 +2157,8 @@ export default function App() {
             </div>
           );
         })}
+
+        {tk === "electricity" && PowerInsight({ cfg, sel, H, tier, price, getOptionSpent })}
 
         <button onClick={() => setScreen("console")} className="ogx-hover"
           style={{ width: "100%", background: th.color, color: C.ink, border: "none", borderRadius: 12, padding: 14, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer", marginTop: 4 }}>
@@ -2722,6 +2892,340 @@ function SectionLabel({ n, text, color }) {
       {n ? <span style={{ fontFamily: FONT_MONO, fontSize: 12, color }}>{n}</span> : null}
       <span style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", letterSpacing: 1, fontSize: 14, color: C.bone }}>{text}</span>
       <span style={{ flex: 1, height: 1, background: C.line }} />
+    </div>
+  );
+}
+
+/* ---- Step completion check ---- */
+function stepDone(tk, st, sel) {
+  const v = sel[tk][st.id];
+  if (!v) return false;
+  if (st.multi) return Array.isArray(v) && v.length > 0;
+  return true;
+}
+
+/* ---- Step badge ---- */
+function StepBadge({ n, done, color }) {
+  return (
+    <div style={{
+      width: 28, height: 28, borderRadius: "50%",
+      background: done ? color : C.ink,
+      border: `2px solid ${done ? color : C.line}`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONT_MONO, fontSize: 12, fontWeight: 600,
+      color: done ? C.ink : C.faint,
+      transition: "all 0.3s ease",
+      flexShrink: 0,
+    }}>
+      {done ? "✓" : n}
+    </div>
+  );
+}
+
+/* ---- Step progress tracker ---- */
+function StepProgress({ th, tk, H, sel, color }) {
+  const total = th.steps.length;
+  const doneCount = th.steps.filter(st => {
+    const relevant = !st.relevant || st.relevant(H);
+    return relevant && stepDone(tk, st, sel);
+  }).length;
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.mute }}>{doneCount}/{total} steps</span>
+        <div style={{ flex: 1, height: 5, background: C.ink, borderRadius: 3, overflow: "hidden" }}>
+          <div style={{
+            width: `${pct}%`, height: "100%", background: color,
+            borderRadius: 3, transition: "width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }} />
+        </div>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: color, fontWeight: 600 }}>{pct}%</span>
+      </div>
+      <div style={{
+        display: "flex", gap: 4, overflowX: "auto", paddingBottom: 4,
+        scrollbarWidth: "none",
+      }}>
+        {th.steps.map((st, i) => {
+          const relevant = !st.relevant || st.relevant(H);
+          const done = relevant && stepDone(tk, st, sel);
+          return (
+            <div key={st.id} style={{
+              flexShrink: 0, padding: "3px 8px", borderRadius: 6,
+              background: done ? color + "22" : relevant ? C.ink : "transparent",
+              border: `1px solid ${done ? color : relevant ? C.line : "transparent"}`,
+              fontFamily: FONT_MONO, fontSize: 9,
+              color: done ? color : relevant ? C.mute : C.faint,
+              cursor: "default", userSelect: "none",
+              whiteSpace: "nowrap",
+              transition: "all 0.2s ease",
+            }} title={st.title}>
+              {done ? "✓ " : ""}{i + 1}. {st.title.split("·")[1]?.trim() || st.title.split("·")[0].trim().slice(0, 20)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Live system snapshot ---- */
+function SystemSnapshot({ H, sel, cfg, color }) {
+  const elec = sel.electricity || {};
+  const hasSolar = elec.generate && (Array.isArray(elec.generate) ? elec.generate.some(id => id.startsWith('panel')) : elec.generate?.startsWith('panel'));
+  const hasWind = elec.generate && (Array.isArray(elec.generate) ? elec.generate.includes('wind') : elec.generate === 'wind');
+  const hasHydro = elec.generate && (Array.isArray(elec.generate) ? elec.generate.includes('hydro') : elec.generate === 'hydro');
+  const hasController = elec.controller;
+  const batteryVal = Array.isArray(elec.battery) ? elec.battery[0] : elec.battery;
+  const hasBattery = batteryVal;
+  const hasInverter = elec.inverter && elec.inverter !== 'no_inv';
+  const hasBackup = Array.isArray(elec.backup) ? elec.backup.length > 0 : !!elec.backup;
+  const voltage = elec.voltage === 'v48' ? 48 : elec.voltage === 'v24' ? 24 : 12;
+
+  // Calculate daily load
+  let dailyWh = 0;
+  const needs = elec.needs || [];
+  const needIds = Array.isArray(needs) ? needs : needs ? [needs] : [];
+  needIds.forEach(id => { dailyWh += (LOAD_WH[id] || 0); });
+  if (dailyWh === 0) dailyWh = 1000;
+
+  const sh = SUN_HOURS[cfg.climate] || 4.5;
+  const panelsNeeded = Math.ceil(dailyWh / (100 * sh * 0.75));
+
+  const anySelection = hasSolar || hasWind || hasHydro || hasController || hasBattery || hasInverter || hasBackup;
+
+  if (!anySelection) {
+    return (
+      <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 14, textAlign: "center" }}>
+        <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 14, color: C.mute, marginBottom: 4 }}>⚡ Your System</div>
+        <div style={{ color: C.faint, fontSize: 12 }}>Start picking gear to see your system take shape</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: C.panel, border: `1px solid ${color}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+      <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 14, color, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+        ⚡ Your System
+        <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.mute, flex: 1, textAlign: "right" }}>{voltage}V · {dailyWh.toLocaleString()}Wh/day</span>
+      </div>
+
+      {/* System flow diagram */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, flexWrap: "wrap", marginBottom: 10 }}>
+        {/* Generation */}
+        {hasSolar && (
+          <div style={{ background: color + "18", border: `1px solid ${color}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color }}>
+            ☀ Solar
+          </div>
+        )}
+        {hasWind && <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.mute, margin: "0 2px" }}>+</div>}
+        {hasWind && (
+          <div style={{ background: color + "18", border: `1px solid ${color}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color }}>
+            🌬 Wind
+          </div>
+        )}
+        {hasHydro && <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.mute, margin: "0 2px" }}>+</div>}
+        {hasHydro && (
+          <div style={{ background: color + "18", border: `1px solid ${color}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color }}>
+            💧 Hydro
+          </div>
+        )}
+
+        {/* Arrow */}
+        {(hasSolar || hasWind || hasHydro) && hasController && (
+          <span style={{ margin: "0 4px", color: C.mute, fontSize: 14 }}>→</span>
+        )}
+
+        {/* Controller */}
+        {hasController && (
+          <div style={{ background: color + "18", border: `1px solid ${color}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color }}>
+            ⚙ CC
+          </div>
+        )}
+
+        {/* Arrow to battery */}
+        {(hasController || hasSolar || hasWind || hasHydro) && hasBattery && (
+          <span style={{ margin: "0 4px", color: C.mute, fontSize: 14 }}>→</span>
+        )}
+
+        {/* Battery */}
+        {hasBattery && (
+          <div style={{ background: color + "18", border: `1px solid ${color}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color }}>
+            🔋 {batteryVal && batteryVal.startsWith('lifepo4') ? 'LiFePO4' : batteryVal && batteryVal.startsWith('agm') ? 'AGM' : batteryVal && batteryVal.startsWith('lead') ? 'Lead' : 'Batt'}
+          </div>
+        )}
+
+        {/* Arrow to inverter */}
+        {hasBattery && hasInverter && (
+          <span style={{ margin: "0 4px", color: C.mute, fontSize: 14 }}>→</span>
+        )}
+
+        {/* Inverter */}
+        {hasInverter && (
+          <div style={{ background: color + "18", border: `1px solid ${color}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color }}>
+            ⚡ Inv
+          </div>
+        )}
+
+        {/* Arrow to loads */}
+        {(hasInverter || hasBattery) && (
+          <span style={{ margin: "0 4px", color: C.mute, fontSize: 14 }}>→</span>
+        )}
+
+        {/* Loads */}
+        <div style={{ background: color + "18", border: `1px solid ${color}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color: C.mute }}>
+          🏠 {dailyWh.toLocaleString()}Wh
+        </div>
+
+        {/* Backup gen */}
+        {hasBackup && (
+          <>
+            <span style={{ margin: "0 4px", color: C.mute, fontSize: 14 }}>⇄</span>
+            <div style={{ background: C.amber + "18", border: `1px solid ${C.amber}44`, borderRadius: 8, padding: "6px 10px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 10, color: C.amber }}>
+              ⛽ Gen
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Key metrics row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, fontSize: 11, fontFamily: FONT_MONO }}>
+        <div style={{ background: C.ink, borderRadius: 6, padding: 6, textAlign: "center" }}>
+          <div style={{ color: C.mute, fontSize: 8, marginBottom: 2 }}>Peak Sun</div>
+          <div style={{ color }}>{sh}h/day</div>
+        </div>
+        <div style={{ background: C.ink, borderRadius: 6, padding: 6, textAlign: "center" }}>
+          <div style={{ color: C.mute, fontSize: 8, marginBottom: 2 }}>Panels est.</div>
+          <div style={{ color: panelsNeeded <= 6 ? C.ok : C.amber }}>~{panelsNeeded}×100W</div>
+        </div>
+        <div style={{ background: C.ink, borderRadius: 6, padding: 6, textAlign: "center" }}>
+          <div style={{ color: C.mute, fontSize: 8, marginBottom: 2 }}>Voltage</div>
+          <div style={{ color }}>{voltage}V</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Premium electricity intro with SVG system diagram ---- */
+function ElectricityIntro({ color }) {
+  const [expanded, setExpanded] = React.useState(true);
+  return (
+    <div style={{ background: `linear-gradient(135deg, ${C.panel}, ${C.panel2})`, border: `1px solid ${color}44`, borderRadius: 14, padding: 0, marginBottom: 14, overflow: "hidden" }}>
+      {/* Header bar */}
+      <div onClick={() => setExpanded(!expanded)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", cursor: "pointer", userSelect: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22 }}>⚡</span>
+          <div>
+            <div style={{ fontFamily: FONT_DISPLAY, textTransform: "uppercase", fontSize: 16, color, letterSpacing: 1 }}>Build Your Power System</div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.mute }}>11 decisions · panels → battery → protection</div>
+          </div>
+        </div>
+        <span style={{ color: C.mute, fontSize: 14, transition: "transform 0.3s ease", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+      </div>
+      
+      {expanded && (
+        <div style={{ padding: "0 16px 16px" }}>
+          {/* SVG System Architecture Diagram */}
+          <div style={{ background: C.ink, borderRadius: 10, padding: 4, marginBottom: 12, overflow: "hidden" }}>
+            <svg viewBox="0 0 720 130" style={{ width: "100%", height: "auto", display: "block" }}>
+              {/* Background gradient */}
+              <defs>
+                <linearGradient id="flowGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={color} stopOpacity="0.6" />
+                  <stop offset="50%" stopColor={color} stopOpacity="1" />
+                  <stop offset="100%" stopColor={color} stopOpacity="0.6" />
+                </linearGradient>
+                <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+              </defs>
+              
+              {/* Flow line (animated dash) */}
+              <line x1="40" y1="65" x2="680" y2="65" stroke={color} strokeWidth="2" strokeDasharray="8 4" opacity="0.4" strokeLinecap="round">
+                <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1.5s" repeatCount="indefinite" />
+              </line>
+              
+              {/* Node 1: Sun */}
+              <circle cx="50" cy="40" r="18" fill={C.ink} stroke={color} strokeWidth="2" filter="url(#glow)" />
+              <text x="50" y="45" textAnchor="middle" fontSize="20">☀️</text>
+              <text x="50" y="80" textAnchor="middle" fill={C.mute} fontSize="9" fontFamily="monospace">SUN</text>
+              
+              {/* Arrow 1 */}
+              <text x="105" y="70" textAnchor="middle" fill={color} fontSize="14" opacity="0.6">→</text>
+              
+              {/* Node 2: Panels */}
+              <rect x="120" y="30" width="70" height="50" rx="8" fill={C.ink} stroke={color} strokeWidth="2" filter="url(#glow)" />
+              <text x="155" y="55" textAnchor="middle" fontSize="18">☀️</text>
+              <text x="155" y="68" textAnchor="middle" fontSize="11" fill={color} fontFamily="monospace" fontWeight="bold">PANELS</text>
+              <text x="155" y="82" textAnchor="middle" fill={C.mute} fontSize="9" fontFamily="monospace">100-450W</text>
+              
+              {/* Arrow 2 */}
+              <text x="215" y="70" textAnchor="middle" fill={color} fontSize="14" opacity="0.6">→</text>
+              
+              {/* Node 3: Controller */}
+              <rect x="230" y="30" width="80" height="50" rx="8" fill={C.ink} stroke={color} strokeWidth="2" filter="url(#glow)" />
+              <text x="270" y="55" textAnchor="middle" fontSize="18">⚙️</text>
+              <text x="270" y="68" textAnchor="middle" fontSize="11" fill={color} fontFamily="monospace" fontWeight="bold">MPPT CC</text>
+              <text x="270" y="82" textAnchor="middle" fill={C.mute} fontSize="9" fontFamily="monospace">MPPT</text>
+              
+              {/* Arrow 3 */}
+              <text x="335" y="70" textAnchor="middle" fill={color} fontSize="14" opacity="0.6">→</text>
+              
+              {/* Node 4: Battery */}
+              <rect x="350" y="25" width="80" height="55" rx="8" fill={C.ink} stroke={color} strokeWidth="2" filter="url(#glow)" />
+              <text x="390" y="50" textAnchor="middle" fontSize="18">🔋</text>
+              <text x="390" y="65" textAnchor="middle" fontSize="11" fill={color} fontFamily="monospace" fontWeight="bold">BATTERY</text>
+              <text x="390" y="80" textAnchor="middle" fill={C.mute} fontSize="9" fontFamily="monospace">LiFePO4/AGM</text>
+              
+              {/* Arrow 4 */}
+              <text x="455" y="70" textAnchor="middle" fill={color} fontSize="14" opacity="0.6">→</text>
+              
+              {/* Node 5: Inverter */}
+              <rect x="470" y="30" width="70" height="50" rx="8" fill={C.ink} stroke={color} strokeWidth="2" filter="url(#glow)" />
+              <text x="505" y="55" textAnchor="middle" fontSize="18">⚡</text>
+              <text x="505" y="68" textAnchor="middle" fontSize="11" fill={color} fontFamily="monospace" fontWeight="bold">INVERTER</text>
+              <text x="505" y="82" textAnchor="middle" fill={C.mute} fontSize="9" fontFamily="monospace">1-3kW PSW</text>
+              
+              {/* Arrow 5 */}
+              <text x="565" y="70" textAnchor="middle" fill={color} fontSize="14" opacity="0.6">→</text>
+              
+              {/* Node 6: Loads */}
+              <rect x="580" y="30" width="70" height="50" rx="8" fill={C.panel2} stroke={color} strokeWidth="2" filter="url(#glow)" />
+              <text x="615" y="55" textAnchor="middle" fontSize="18">🏠</text>
+              <text x="615" y="68" textAnchor="middle" fontSize="11" fill={color} fontFamily="monospace" fontWeight="bold">LOADS</text>
+              <text x="615" y="82" textAnchor="middle" fill={C.mute} fontSize="9" fontFamily="monospace">Lights·Link·AC</text>
+              
+              {/* Generator branch */}
+              <line x1="390" y1="25" x2="390" y2="8" stroke={C.amber} strokeWidth="1.5" strokeDasharray="3 3" opacity="0.5" />
+              <rect x="355" y="-5" width="70" height="22" rx="6" fill={C.ink} stroke={C.amber} strokeWidth="1.5" />
+              <text x="390" y="10" textAnchor="middle" fontSize="12">⛽ Genset</text>
+              <line x1="390" y1="17" x2="390" y2="25" stroke={C.amber} strokeWidth="1.5" opacity="0.5" />
+            </svg>
+          </div>
+          
+          {/* Decision journey text */}
+          <div style={{ color: C.bone, fontSize: 12.5, lineHeight: 1.6, marginBottom: 10 }}>
+            Starting with <b style={{ color }}>what you actually need to run</b>, you'll choose your voltage, pick panels, size your battery, 
+            protect it all with proper wiring, then layer on security and communications. Every option is real gear with verified 2026 pricing.
+          </div>
+          
+          {/* Quick-step preview grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+            {["Needs","Voltage","Panels","Controller","Battery","Inverter","Wiring"].map((s,i) => (
+              <div key={i} style={{ background: C.ink, borderRadius: 6, padding: "4px 2px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 8, color: i<3 ? color : C.mute, border: i<3 ? `1px solid ${color}33` : "1px solid transparent" }}>
+                {i+1}.{s.slice(0,4)}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginTop: 4 }}>
+            {["Backup","Security","Harden","Fire","Community","Internet"].map((s,i) => (
+              <div key={i} style={{ background: C.ink, borderRadius: 6, padding: "4px 2px", textAlign: "center", fontFamily: FONT_MONO, fontSize: 8, color: C.faint }}>
+                {i+8}.{s.slice(0,4)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
