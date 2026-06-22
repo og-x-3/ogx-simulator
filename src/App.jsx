@@ -714,6 +714,11 @@ const CARDS = [
     body: "Months of salt air corrode terminals and crimps. Voltage drops, circuits go intermittent, one morning your pump won't start — but the battery is full. Salt ate your connections.",
     lesson: "Use tinned marine-grade wire, dielectric grease on all connections, and stainless hardware. Inspect every 3 months. A can of Corrosion-X ($12) sprayed annually on all electrical connections is the difference between reliable and stranded." },
 
+  { id: "rodents", sev: "warn", title: "Rodents chewed through your solar cables", color: C.power,
+    trigger: (h) => hasSolar(h),
+    body: "Ground squirrels chewed through your PV wire insulation overnight — the array goes dead. A real Nevada off-gridder lost his entire 2kW system when pack rats nested under the panels and gnawed every MC4 lead in one winter. Arizona solar farms lose $100k+/yr to rodent damage.",
+    lesson: "Solar cable insulation contains soy-based compounds that attract rodents. Run all exposed wiring through metal conduit or liquid-tight flex. Wrap vulnerable sections in CritterGuard stainless mesh ($30/roll). Bitter-apple spray deters short-term. Check under panels monthly for nests and droppings — catch it before they chew through." },
+
   /* Good cards — reward resilient builds */
   { id: "resilientwater", sev: "good", title: "Resilient water - well done", color: C.water,
     trigger: (h) => h.count("water", "collect") >= 3 && h.any("water", "filter"),
